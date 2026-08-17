@@ -78,6 +78,33 @@ def get_trending():
         "article_count": len(structured_news),
         "data": structured_news
     })
+@app.route('/history', methods=['GET'])
+def get_history():
+    # 1. Open the vault
+    conn = get_db_connection()
+    
+    # 2. Query all stored articles, newest first
+    articles = conn.execute('SELECT * FROM articles ORDER BY id DESC').fetchall()
+    conn.close()
+
+    # 3. Format the database rows into clean JSON
+    saved_news = []
+    for article in articles:
+        saved_news.append({
+            "id": article["id"],
+            "title": article["title"],
+            "source": article["source"],
+            "url": article["url"],
+            "raw_summary": article["raw_summary"],
+            "published_at": article["published_at"]
+        })
+
+    # 4. Return the archive to the screen
+    return jsonify({
+        "status": "success",
+        "total_saved_articles": len(saved_news),
+        "data": saved_news
+    })
 
 if __name__ == '__main__':
     app.run(debug=True)
