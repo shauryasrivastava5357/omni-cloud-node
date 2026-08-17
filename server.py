@@ -8,7 +8,7 @@ app = Flask(__name__)
 
 # 1. Initialize the AI
 genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
-ai_model = genai.GenerativeModel('gemini-3.5-flash')
+ai_model = genai.GenerativeModel('gemini-2.5-flash')
 
 # 2. Database Connection
 def get_db_connection():
@@ -68,30 +68,39 @@ def get_history():
 
 @app.route('/summarize', methods=['GET'])
 def summarize_latest():
-    try: # Wrapped in a try/except so we get clean error messages instead of a 500 crash
+    try: 
         conn = get_db_connection()
-        latest_article = conn.execute('SELECT * FROM articles ORDER BY id DESC LIMIT 1').fetchone()
+        # 1. Analytics Upgrade: Fetch the 10 most recent articles instead of just 1
+        recent_articles = conn.execute('SELECT * FROM articles ORDER BY id DESC LIMIT 10').fetchall()
         conn.close()
 
-        if not latest_article:
+        if not recent_articles:
             return jsonify({"error": "No articles in the vault. Run /trending first."})
 
+        # 2. Compile the raw data for the AI
+        compiled_data = ""
+        for article in recent_articles:
+            compiled_data += f"- {article['title']}: {article['raw_summary']}\n"
+
+        # 3. Advanced Analytical Prompt
         prompt = f"""
-        You are an elite data analyst. Read this raw news summary and provide a 2-sentence 
-        executive briefing on why this matters.
-        Title: {latest_article["title"]}
-        Raw Data: {latest_article["raw_summary"]}
+        You are an elite data analyst. Review the following recent news articles and provide a 
+        macro-trend sentiment analysis. Give me a 3-bullet point executive briefing on the overall 
+        narrative of these articles, highlighting any major positive, negative, or technological trends.
+        
+        Raw Data:
+        {compiled_data}
         """
 
+        # Generate the response
         response = ai_model.generate_content(prompt)
         
         return jsonify({
             "status": "success",
-            "original_title": latest_article["title"],
-            "ai_executive_briefing": response.text
+            "articles_analyzed": len(recent_articles),
+            "ai_macro_analysis": response.text
         })
     except Exception as e:
-        # If Gemini fails (e.g., bad API key), it will output the exact error here
         return jsonify({"error": str(e), "type": "AI or Database Failure"}), 400
 
 if __name__ == '__main__':
