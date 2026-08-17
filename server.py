@@ -1,3 +1,4 @@
+from flask import Flask, jsonify, render_template
 import os
 import requests
 import sqlite3
@@ -36,7 +37,7 @@ init_db() # Ensure the vault exists when the server spins up
 
 @app.route('/')
 def home():
-    return jsonify({"message": "Graviton API is Live! The gravitational pull is active."})
+    return render_template('index.html')
 
 @app.route('/trending', methods=['GET'])
 def get_trending():

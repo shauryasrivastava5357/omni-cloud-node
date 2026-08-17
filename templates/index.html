@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Graviton Analytics Engine</title>
+    <style>
+        body {
+            background-color: #0d1117;
+            color: #c9d1d9;
+            font-family: 'Courier New', Courier, monospace;
+            padding: 40px;
+            margin: 0;
+        }
+        h1 {
+            color: #58a6ff;
+            border-bottom: 1px solid #30363d;
+            padding-bottom: 10px;
+        }
+        .controls {
+            margin: 20px 0;
+        }
+        button {
+            background-color: #238636;
+            color: #ffffff;
+            border: none;
+            padding: 12px 24px;
+            margin-right: 10px;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        button:hover {
+            background-color: #2ea043;
+        }
+        .console-container {
+            background-color: #010409;
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            padding: 20px;
+            margin-top: 20px;
+            box-shadow: inset 0 0 10px rgba(0,0,0,0.5);
+        }
+        pre {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            margin: 0;
+            color: #a5d6ff;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Graviton Analytics Engine</h1>
+    <p>Live Data Ingestion | Persistent SQLite Vault | Gemini 2.5 AI Analysis</p>
+
+    <div class="controls">
+        <button onclick="fetchData('/trending')">1. Ingest Live Data</button>
+        <button onclick="fetchData('/history')">2. View Database Vault</button>
+        <button onclick="fetchData('/summarize')">3. Run AI Analytics</button>
+    </div>
+
+    <div class="console-container">
+        <pre id="output">System Ready... Waiting for command.</pre>
+    </div>
+
+    <script>
+        async function fetchData(endpoint) {
+            const outputDiv = document.getElementById('output');
+            outputDiv.innerText = `Executing ${endpoint}...\nPulling data from server...`;
+            
+            try {
+                const response = await fetch(endpoint);
+                const data = await response.json();
+                // This stringifies the JSON so it looks beautiful on the screen
+                outputDiv.innerText = JSON.stringify(data, null, 4);
+            } catch (error) {
+                outputDiv.innerText = `System Error: ${error.message}`;
+            }
+        }
+    </script>
+
+</body>
+</html>
