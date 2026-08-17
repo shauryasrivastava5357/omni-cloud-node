@@ -8,7 +8,7 @@ app = Flask(__name__)
 
 # 1. Initialize the AI
 genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
-ai_model = genai.GenerativeModel('gemini-1.5-flash')
+ai_model = genai.GenerativeModel('gemini-3.5-flash')
 
 # 2. Database Connection
 def get_db_connection():
