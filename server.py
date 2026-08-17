@@ -6,14 +6,33 @@ from flask import Flask, jsonify
 
 app = Flask(__name__)
 
-# 1. Initialize the AI (Pulling the secret key from Render's environment)
+# 1. Initialize the AI
 genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
 ai_model = genai.GenerativeModel('gemini-1.5-flash')
 
+# 2. Database Connection
 def get_db_connection():
     conn = sqlite3.connect('telemetry.db')
     conn.row_factory = sqlite3.Row
     return conn
+
+# 3. THE FIX: Re-added the database initialization!
+def init_db():
+    conn = get_db_connection()
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS articles (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            title TEXT,
+            source TEXT,
+            url TEXT,
+            raw_summary TEXT,
+            published_at TEXT
+        )
+    ''')
+    conn.commit()
+    conn.close()
+
+init_db() # Ensure the vault exists when the server spins up
 
 @app.route('/')
 def home():
@@ -47,38 +66,33 @@ def get_history():
     conn.close()
     return jsonify({"total_saved": len(articles)})
 
-# 2. THE AI ANALYTICS ROUTE
 @app.route('/summarize', methods=['GET'])
 def summarize_latest():
-    conn = get_db_connection()
-    # Grab the single newest article from the vault
-    latest_article = conn.execute('SELECT * FROM articles ORDER BY id DESC LIMIT 1').fetchone()
-    conn.close()
+    try: # Wrapped in a try/except so we get clean error messages instead of a 500 crash
+        conn = get_db_connection()
+        latest_article = conn.execute('SELECT * FROM articles ORDER BY id DESC LIMIT 1').fetchone()
+        conn.close()
 
-    if not latest_article:
-        return jsonify({"error": "No articles in the vault. Run /trending first."})
+        if not latest_article:
+            return jsonify({"error": "No articles in the vault. Run /trending first."})
 
-    # Construct the prompt for the AI
-    prompt = f"""
-    You are an elite data analyst. Read this raw news summary and provide a 2-sentence 
-    executive briefing on why this matters.
-    Title: {latest_article["title"]}
-    Raw Data: {latest_article["raw_summary"]}
-    """
+        prompt = f"""
+        You are an elite data analyst. Read this raw news summary and provide a 2-sentence 
+        executive briefing on why this matters.
+        Title: {latest_article["title"]}
+        Raw Data: {latest_article["raw_summary"]}
+        """
 
-    try:
-        # Generate the response
         response = ai_model.generate_content(prompt)
-        ai_summary = response.text
+        
+        return jsonify({
+            "status": "success",
+            "original_title": latest_article["title"],
+            "ai_executive_briefing": response.text
+        })
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-    # Return the AI-generated analysis alongside the original data
-    return jsonify({
-        "status": "success",
-        "original_title": latest_article["title"],
-        "ai_executive_briefing": ai_summary
-    })
+        # If Gemini fails (e.g., bad API key), it will output the exact error here
+        return jsonify({"error": str(e), "type": "AI or Database Failure"}), 400
 
 if __name__ == '__main__':
     app.run(debug=True)
