@@ -9,7 +9,10 @@ app = Flask(__name__)
 
 # 1. Initialize the AI
 genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
-ai_model = genai.GenerativeModel('gemini-2.5-flash')
+
+# Dynamically fetch the model version from the cloud, with a built-in safety fallback
+target_model = os.environ.get("GEMINI_MODEL_VERSION", "gemini-3.6-flash")
+ai_model = genai.GenerativeModel(target_model)
 
 # 2. Database Connection
 def get_db_connection():
