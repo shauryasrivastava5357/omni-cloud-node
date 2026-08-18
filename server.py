@@ -1,4 +1,4 @@
-from flask import Flask, jsonify, render_template, request
+from flask import Flask, jsonify, render_template, request, send_from_directory
 import sqlite3
 import google.generativeai as genai
 import os
@@ -37,9 +37,15 @@ def init_db():
 init_db()
 
 # 4. Core Routes
+
 @app.route('/')
 def home():
     return render_template('index.html')
+
+# CRITICAL PWA FIX: Force Flask to serve the manifest directly
+@app.route('/manifest.json')
+def serve_manifest():
+    return send_from_directory('static', 'manifest.json', mimetype='application/manifest+json')
 
 @app.route('/trending', methods=['GET'])
 def get_trending():
@@ -76,9 +82,6 @@ def get_trending():
                          (data.get("title"), "Reddit - r/technology", data.get("url"), f"Upvotes: {data.get('ups')} | Viral Discussion", str(data.get("created_utc"))))
             new_data_count += 1
     except Exception as e: print(f"Reddit API Error: {e}")
-
-    # [Future Integration Placeholder: Twitter/X & Instagram via TagX/Data365 APIs]
-    # Data architecture is ready for these endpoints once API keys are acquired.
 
     conn.commit()
     conn.close()
