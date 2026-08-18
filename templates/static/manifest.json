@@ -1,0 +1,16 @@
+{
+  "name": "Graviton Analytics Engine",
+  "short_name": "Graviton",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0F172A",
+  "theme_color": "#0F172A",
+  "description": "AI-Powered Data Intelligence",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/3260/3260838.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

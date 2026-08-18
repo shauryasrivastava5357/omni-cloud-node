@@ -2,85 +2,86 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Graviton Analytics Engine</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Graviton AI</title>
+    <!-- Tailwind CSS for premium styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+    <link rel="manifest" href="/static/manifest.json">
+    <meta name="theme-color" content="#0F172A">
     <style>
-        body {
-            background-color: #0d1117;
-            color: #c9d1d9;
-            font-family: 'Courier New', Courier, monospace;
-            padding: 40px;
-            margin: 0;
-        }
-        h1 {
-            color: #58a6ff;
-            border-bottom: 1px solid #30363d;
-            padding-bottom: 10px;
-        }
-        .controls {
-            margin: 20px 0;
-        }
-        button {
-            background-color: #238636;
-            color: #ffffff;
-            border: none;
-            padding: 12px 24px;
-            margin-right: 10px;
-            border-radius: 6px;
-            font-size: 16px;
-            font-weight: bold;
-            cursor: pointer;
-            transition: background-color 0.2s;
-        }
-        button:hover {
-            background-color: #2ea043;
-        }
-        .console-container {
-            background-color: #010409;
-            border: 1px solid #30363d;
-            border-radius: 6px;
-            padding: 20px;
-            margin-top: 20px;
-            box-shadow: inset 0 0 10px rgba(0,0,0,0.5);
-        }
-        pre {
-            white-space: pre-wrap;
-            word-wrap: break-word;
-            margin: 0;
-            color: #a5d6ff;
-        }
+        body { font-family: 'Inter', sans-serif; background-color: #0F172A; color: #F8FAFC; }
+        .glass-card { background: rgba(30, 41, 59, 0.7); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.1); }
+        /* Hide scrollbar for a cleaner app feel */
+        ::-webkit-scrollbar { display: none; }
     </style>
 </head>
-<body>
+<body class="flex items-center justify-center min-h-screen p-4">
 
-    <h1>Graviton Analytics Engine</h1>
-    <p>Live Data Ingestion | Persistent SQLite Vault | Gemini 2.5 AI Analysis</p>
+    <!-- Mobile App Container -->
+    <div class="w-full max-w-md h-full flex flex-col gap-6">
+        
+        <!-- Header -->
+        <div class="text-center pt-8 pb-4">
+            <h1 class="text-4xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-indigo-500 tracking-tight">
+                Graviton
+            </h1>
+            <p class="text-slate-400 text-sm mt-1 font-medium">Autonomous Intelligence Engine</p>
+        </div>
 
-    <div class="controls">
-        <button onclick="fetchData('/trending')">1. Ingest Live Data</button>
-        <button onclick="fetchData('/history')">2. View Database Vault</button>
-        <button onclick="fetchData('/summarize')">3. Run AI Analytics</button>
-    </div>
+        <!-- Action Buttons -->
+        <div class="grid grid-cols-1 gap-4">
+            <button onclick="fetchData('/trending', 'Ingesting global data streams...')" 
+                class="relative overflow-hidden group bg-gradient-to-br from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 text-white font-semibold py-4 px-6 rounded-2xl shadow-lg transition-all active:scale-95">
+                <div class="flex items-center justify-center gap-2">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 002-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
+                    <span>1. Ingest Live Data</span>
+                </div>
+            </button>
 
-    <div class="console-container">
-        <pre id="output">System Ready... Waiting for command.</pre>
+            <button onclick="fetchData('/history', 'Accessing secure vault...')" 
+                class="relative overflow-hidden group bg-slate-800 hover:bg-slate-700 border border-slate-700 text-white font-semibold py-4 px-6 rounded-2xl shadow-lg transition-all active:scale-95">
+                <div class="flex items-center justify-center gap-2">
+                    <svg class="w-5 h-5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4"></path></svg>
+                    <span>2. View Database Vault</span>
+                </div>
+            </button>
+
+            <button onclick="fetchData('/summarize', 'Initializing Gemini AI Models...')" 
+                class="relative overflow-hidden group bg-gradient-to-br from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-semibold py-4 px-6 rounded-2xl shadow-lg shadow-emerald-500/20 transition-all active:scale-95">
+                <div class="flex items-center justify-center gap-2">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                    <span>3. Run AI Analytics</span>
+                </div>
+            </button>
+        </div>
+
+        <!-- Output Console -->
+        <div class="glass-card rounded-2xl p-5 mt-4 min-h-[250px] flex flex-col shadow-2xl">
+            <div class="flex items-center gap-2 mb-3 border-b border-slate-700 pb-3">
+                <div class="w-3 h-3 rounded-full bg-red-500"></div>
+                <div class="w-3 h-3 rounded-full bg-yellow-500"></div>
+                <div class="w-3 h-3 rounded-full bg-green-500"></div>
+                <span class="text-xs text-slate-400 ml-2 font-mono uppercase tracking-wider">Terminal Output</span>
+            </div>
+            <pre id="output" class="text-sm text-blue-200 font-mono whitespace-pre-wrap word-wrap break-word overflow-y-auto max-h-[400px]">System ready. Awaiting command...</pre>
+        </div>
     </div>
 
     <script>
-        async function fetchData(endpoint) {
+        async function fetchData(endpoint, loadingText) {
             const outputDiv = document.getElementById('output');
-            outputDiv.innerText = `Executing ${endpoint}...\nPulling data from server...`;
+            outputDiv.innerHTML = `<span class="animate-pulse text-emerald-400">${loadingText}</span>`;
             
             try {
                 const response = await fetch(endpoint);
                 const data = await response.json();
-                // This stringifies the JSON so it looks beautiful on the screen
                 outputDiv.innerText = JSON.stringify(data, null, 4);
             } catch (error) {
-                outputDiv.innerText = `System Error: ${error.message}`;
+                outputDiv.innerHTML = `<span class="text-red-400">System Error: ${error.message}</span>`;
             }
         }
     </script>
-
 </body>
 </html>

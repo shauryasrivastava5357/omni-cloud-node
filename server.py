@@ -5,7 +5,7 @@ import sqlite3
 import google.generativeai as genai
 from flask import Flask, jsonify
 
-app = Flask(__name__)
+app = Flask(__name__, static_folder='static')
 
 # 1. Initialize the AI
 genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
