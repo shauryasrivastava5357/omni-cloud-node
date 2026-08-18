@@ -5,39 +5,40 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Graviton AI</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = { darkMode: 'media' } // Automatically reads phone's light/dark setting
+    </script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <meta name="theme-color" content="#0F172A">
     <style>
-        body { font-family: 'Inter', sans-serif; background-color: #000000; color: #F8FAFC; overflow: hidden; margin: 0; }
-        /* App Container mimics a phone screen on desktop, takes full screen on mobile */
-        .app-container { background-color: #0F172A; max-width: 480px; margin: 0 auto; height: 100vh; display: flex; flex-direction: column; position: relative; }
+        body { font-family: 'Inter', sans-serif; overflow: hidden; margin: 0; }
+        .app-container { max-width: 480px; margin: 0 auto; height: 100vh; display: flex; flex-direction: column; position: relative; }
         .content-area { flex: 1; overflow-y: auto; padding: 20px 20px 100px 20px; scroll-behavior: smooth; }
         ::-webkit-scrollbar { display: none; }
         
-        /* Premium Glassmorphism Navigation */
-        .glass-nav { background: rgba(15, 23, 42, 0.85); backdrop-filter: blur(20px); border-top: 1px solid rgba(255,255,255,0.05); padding-bottom: env(safe-area-inset-bottom); }
-        .tab-btn { color: #64748b; transition: all 0.2s ease; display: flex; flex-direction: column; items-center; justify-center; gap: 4px; }
-        .tab-btn.active { color: #6366f1; }
-        .tab-btn.active .icon-bg { background-color: rgba(99, 102, 241, 0.1); border-radius: 12px; padding: 4px 12px; }
+        /* Glass Navigation adapts to light/dark */
+        .glass-nav { backdrop-filter: blur(20px); padding-bottom: env(safe-area-inset-bottom); }
+        .tab-btn { transition: all 0.2s ease; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; }
         
-        /* Polished Interactions: Shimmer Loading */
-        .shimmer { background: linear-gradient(90deg, #1e293b 25%, #334155 50%, #1e293b 75%); background-size: 200% 100%; animation: shimmer 1.5s infinite; border-radius: 8px; }
+        /* Shimmer Loading */
+        .shimmer { background: linear-gradient(90deg, #cbd5e1 25%, #e2e8f0 50%, #cbd5e1 75%); background-size: 200% 100%; animation: shimmer 1.5s infinite; border-radius: 8px; }
+        @media (prefers-color-scheme: dark) {
+            .shimmer { background: linear-gradient(90deg, #1e293b 25%, #334155 50%, #1e293b 75%); }
+        }
         @keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
         
-        /* View transitions */
         .view-section { display: none; animation: fadeIn 0.2s ease-in-out; }
         .view-section.active { display: block; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
     </style>
 </head>
-<body>
+<body class="bg-slate-100 dark:bg-[#000000] text-slate-900 dark:text-slate-50">
 
-<div class="app-container shadow-2xl shadow-indigo-900/20">
+<div class="app-container bg-slate-50 dark:bg-[#0F172A] shadow-2xl">
 
     <!-- HEADER -->
-    <div class="pt-10 pb-4 px-6 border-b border-white/5 bg-[#0F172A] z-10 sticky top-0">
-        <h1 class="text-2xl font-extrabold text-white tracking-tight">Graviton<span class="text-indigo-500">.</span></h1>
-        <p class="text-slate-400 text-xs font-medium">Omnichannel Intelligence</p>
+    <div class="pt-10 pb-4 px-6 border-b border-slate-200 dark:border-white/5 bg-slate-50 dark:bg-[#0F172A] z-10 sticky top-0">
+        <h1 class="text-2xl font-extrabold tracking-tight text-slate-900 dark:text-white">Graviton<span class="text-indigo-500">.</span></h1>
+        <p class="text-slate-500 dark:text-slate-400 text-xs font-medium">Omnichannel Intelligence</p>
     </div>
 
     <!-- MAIN CONTENT AREA -->
@@ -45,46 +46,42 @@
         
         <!-- VIEW 1: DASHBOARD -->
         <div id="view-dashboard" class="view-section active">
-            <h2 class="text-lg font-bold mb-4">Command Center</h2>
+            <h2 class="text-lg font-bold mb-4 text-slate-800 dark:text-slate-100">Command Center</h2>
             
             <div class="grid grid-cols-1 gap-4 mb-6">
                 <!-- Action Card 1 -->
                 <button onclick="runIngestion()" class="bg-gradient-to-br from-blue-600 to-indigo-700 p-5 rounded-2xl text-left shadow-lg relative overflow-hidden group active:scale-95 transition-transform">
-                    <div class="absolute top-0 right-0 -mt-4 -mr-4 w-24 h-24 bg-white opacity-10 rounded-full blur-xl group-hover:opacity-20 transition-opacity"></div>
                     <h3 class="text-white font-bold text-lg mb-1">Ingest Live Data</h3>
-                    <p class="text-blue-200 text-xs line-clamp-2">Scan global APIs and sync new trends into the secure SQLite vault.</p>
+                    <p class="text-blue-100 text-xs line-clamp-2">Scan global APIs and sync new trends into the secure SQLite vault.</p>
                 </button>
 
                 <!-- Action Card 2 -->
-                <button onclick="runAIReport()" class="bg-[#1E293B] border border-slate-700 p-5 rounded-2xl text-left shadow-lg active:scale-95 transition-transform">
-                    <h3 class="text-white font-bold text-lg mb-1">Generate AI Report</h3>
-                    <p class="text-slate-400 text-xs line-clamp-2">Compile recent vault telemetry into a macro-trend executive briefing.</p>
+                <button onclick="runAIReport()" class="bg-white dark:bg-[#1E293B] border border-slate-200 dark:border-slate-700 p-5 rounded-2xl text-left shadow-md active:scale-95 transition-transform">
+                    <h3 class="text-slate-800 dark:text-white font-bold text-lg mb-1">Generate AI Report</h3>
+                    <p class="text-slate-500 dark:text-slate-400 text-xs line-clamp-2">Compile recent vault telemetry into a macro-trend executive briefing.</p>
                 </button>
             </div>
 
-            <div id="dashboard-output" class="bg-[#0B1120] rounded-xl p-4 font-mono text-xs text-indigo-300 hidden border border-indigo-500/20 whitespace-pre-wrap"></div>
+            <div id="dashboard-output" class="bg-slate-100 dark:bg-[#0B1120] rounded-xl p-4 font-mono text-xs text-indigo-700 dark:text-indigo-300 hidden border border-indigo-200 dark:border-indigo-500/20 whitespace-pre-wrap"></div>
         </div>
 
-        <!-- VIEW 2: DISCOVERY FEED (Rich Cards) -->
+        <!-- VIEW 2: DISCOVERY FEED -->
         <div id="view-feed" class="view-section">
-            <h2 class="text-lg font-bold mb-4">Live Radar</h2>
-            <div id="feed-container" class="flex flex-col gap-4">
-                <!-- Data will inject here -->
-            </div>
+            <h2 class="text-lg font-bold mb-4 text-slate-800 dark:text-slate-100">Live Radar</h2>
+            <div id="feed-container" class="flex flex-col gap-4"></div>
         </div>
 
         <!-- VIEW 3: AI CHAT -->
         <div id="view-chat" class="view-section flex flex-col h-full">
-            <h2 class="text-lg font-bold mb-4">Ask Graviton</h2>
+            <h2 class="text-lg font-bold mb-4 text-slate-800 dark:text-slate-100">Ask Graviton</h2>
             <div id="chat-history" class="flex-1 flex flex-col gap-4 mb-4 overflow-y-auto">
-                <!-- Initial System Message -->
-                <div class="bg-indigo-900/30 border border-indigo-500/20 p-4 rounded-2xl rounded-tl-sm w-11/12">
-                    <p class="text-sm text-indigo-100">System online. The intelligence vault is ready for your query.</p>
+                <div class="bg-white dark:bg-indigo-900/30 border border-slate-200 dark:border-indigo-500/20 p-4 rounded-2xl rounded-tl-sm w-11/12 shadow-sm">
+                    <p class="text-sm text-slate-700 dark:text-indigo-100">System online. The intelligence vault is ready for your query.</p>
                 </div>
             </div>
             
             <div class="mt-auto relative">
-                <input type="text" id="chat-input" placeholder="Query the vault..." class="w-full bg-[#1E293B] text-white rounded-full pl-5 pr-12 py-4 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500 border border-slate-700 placeholder-slate-500 shadow-lg">
+                <input type="text" id="chat-input" placeholder="Query the vault..." class="w-full bg-white dark:bg-[#1E293B] text-slate-900 dark:text-white rounded-full pl-5 pr-12 py-4 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500 border border-slate-300 dark:border-slate-700 shadow-lg">
                 <button onclick="sendChatMessage()" class="absolute right-2 top-2 bottom-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-full w-10 h-10 flex items-center justify-center transition-colors">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
                 </button>
@@ -93,23 +90,23 @@
 
     </div>
 
-    <!-- BOTTOM NAVIGATION (App Style) -->
-    <div class="glass-nav absolute bottom-0 w-full px-6 py-3 flex justify-between items-center z-20">
-        <button onclick="switchTab('dashboard')" id="tab-dashboard" class="tab-btn active flex-1 items-center">
+    <!-- BOTTOM NAVIGATION -->
+    <div class="glass-nav bg-white/85 dark:bg-slate-900/85 border-t border-slate-200 dark:border-slate-800 absolute bottom-0 w-full px-6 py-3 flex justify-between items-center z-20">
+        <button onclick="switchTab('dashboard')" id="tab-dashboard" class="tab-btn active flex-1 items-center text-slate-400 dark:text-slate-500">
             <div class="icon-bg flex flex-col items-center">
                 <svg class="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path></svg>
                 <span class="text-[10px] font-semibold tracking-wide">Dash</span>
             </div>
         </button>
         
-        <button onclick="switchTab('feed')" id="tab-feed" class="tab-btn flex-1 items-center">
+        <button onclick="switchTab('feed')" id="tab-feed" class="tab-btn flex-1 items-center text-slate-400 dark:text-slate-500">
             <div class="icon-bg flex flex-col items-center">
                 <svg class="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 002-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
                 <span class="text-[10px] font-semibold tracking-wide">Radar</span>
             </div>
         </button>
 
-        <button onclick="switchTab('chat')" id="tab-chat" class="tab-btn flex-1 items-center">
+        <button onclick="switchTab('chat')" id="tab-chat" class="tab-btn flex-1 items-center text-slate-400 dark:text-slate-500">
             <div class="icon-bg flex flex-col items-center">
                 <svg class="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"></path></svg>
                 <span class="text-[10px] font-semibold tracking-wide">AI Chat</span>
@@ -119,30 +116,30 @@
 
 </div>
 
+<style>
+    /* Active Tab Colors */
+    .tab-btn.active { color: #4f46e5; }
+    .dark .tab-btn.active { color: #6366f1; }
+    .tab-btn.active .icon-bg { background-color: rgba(79, 70, 229, 0.1); border-radius: 12px; padding: 4px 12px; }
+</style>
+
 <script>
-    // Tab Navigation Logic
     function switchTab(tabId) {
-        // Update Buttons
         document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
         document.getElementById('tab-' + tabId).classList.add('active');
-        
-        // Update Views
         document.querySelectorAll('.view-section').forEach(view => view.classList.remove('active'));
         document.getElementById('view-' + tabId).classList.add('active');
-
-        // Trigger feed fetch if Radar is opened
         if (tabId === 'feed') { loadFeed(); }
     }
 
-    // DASHBOARD FUNCTIONS
     async function runIngestion() {
         const out = document.getElementById('dashboard-output');
         out.classList.remove('hidden');
-        out.innerHTML = '<div class="flex items-center gap-2"><div class="w-2 h-2 bg-indigo-500 rounded-full animate-ping"></div><span>Connecting to global networks...</span></div>';
+        out.innerHTML = '<div class="flex items-center gap-2"><div class="w-2 h-2 bg-indigo-500 rounded-full animate-ping"></div><span>Connecting...</span></div>';
         try {
             const res = await fetch('/trending');
             const data = await res.json();
-            out.innerText = `Success: ${data.message}`;
+            out.innerText = data.message;
         } catch(e) { out.innerText = `Error: ${e.message}`; }
     }
 
@@ -153,63 +150,54 @@
         try {
             const res = await fetch('/summarize');
             const data = await res.json();
-            out.innerHTML = `<span class="text-white font-bold block mb-2">Executive Briefing:</span>${data.ai_macro_analysis}`;
+            out.innerHTML = `<span class="font-bold block mb-2 text-slate-900 dark:text-white">Executive Briefing:</span>${data.ai_macro_analysis}`;
         } catch(e) { out.innerText = `Error: ${e.message}`; }
     }
 
-    // FEED FUNCTION (Rich Cards)
     async function loadFeed() {
         const container = document.getElementById('feed-container');
-        // Inject Skeleton Loaders
-        container.innerHTML = Array(3).fill('<div class="bg-[#1E293B] rounded-2xl p-4 border border-slate-800 h-32 flex flex-col justify-between"><div class="shimmer h-4 w-1/4"></div><div class="shimmer h-5 w-full mt-2"></div><div class="shimmer h-3 w-2/3 mt-auto"></div></div>').join('');
+        container.innerHTML = Array(3).fill('<div class="bg-white dark:bg-[#1E293B] rounded-2xl p-4 border border-slate-200 dark:border-slate-800 h-32 flex flex-col justify-between shadow-sm"><div class="shimmer h-4 w-1/4"></div><div class="shimmer h-5 w-full mt-2"></div><div class="shimmer h-3 w-2/3 mt-auto"></div></div>').join('');
         
         try {
             const res = await fetch('/history');
             const data = await res.json();
             
             if (data.length === 0) {
-                container.innerHTML = '<p class="text-slate-500 text-sm text-center mt-10">Vault is empty. Ingest data from the Dashboard.</p>';
+                container.innerHTML = '<p class="text-slate-500 text-sm text-center mt-10">Vault is empty.</p>';
                 return;
             }
 
             container.innerHTML = data.map(item => {
                 let platform = item.source.split('-')[0].split(' ')[0];
                 return `
-                <div class="bg-[#1E293B] rounded-2xl p-4 border border-slate-800 shadow-lg relative overflow-hidden">
-                    <div class="flex items-center justify-between mb-3">
-                        <span class="px-2 py-1 bg-indigo-500/10 text-indigo-400 text-[10px] font-bold uppercase rounded tracking-wider">${platform}</span>
-                    </div>
-                    <h3 class="font-semibold text-sm mb-2 text-slate-100 leading-snug">${item.title}</h3>
-                    <p class="text-xs text-slate-400 mb-4 line-clamp-2">${item.raw_summary}</p>
-                    <a href="${item.url}" target="_blank" class="w-full flex items-center justify-center gap-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold py-3 rounded-xl transition-colors">
-                        View Source
-                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
+                <div class="bg-white dark:bg-[#1E293B] rounded-2xl p-4 border border-slate-200 dark:border-slate-800 shadow-sm relative overflow-hidden">
+                    <span class="px-2 py-1 bg-indigo-100 dark:bg-indigo-500/10 text-indigo-700 dark:text-indigo-400 text-[10px] font-bold uppercase rounded tracking-wider">${platform}</span>
+                    <h3 class="font-semibold text-sm mt-3 mb-2 text-slate-900 dark:text-slate-100 leading-snug">${item.title}</h3>
+                    <p class="text-xs text-slate-500 dark:text-slate-400 mb-4 line-clamp-2">${item.raw_summary}</p>
+                    <a href="${item.url}" target="_blank" class="w-full flex items-center justify-center gap-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-semibold py-3 rounded-xl transition-colors">
+                        View Source <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
                     </a>
                 </div>`;
             }).join('');
-        } catch(e) { container.innerHTML = `<p class="text-red-400 text-sm">Error loading feed: ${e.message}</p>`; }
+        } catch(e) { container.innerHTML = `<p class="text-red-500 text-sm">Error: ${e.message}</p>`; }
     }
 
-    // CHAT FUNCTION
     async function sendChatMessage() {
         const input = document.getElementById('chat-input');
         const text = input.value.trim();
         if(!text) return;
         
         const history = document.getElementById('chat-history');
-        
-        // Append User Message
         history.innerHTML += `
-        <div class="bg-slate-800 p-4 rounded-2xl rounded-tr-sm w-10/12 self-end shadow-md">
-            <p class="text-sm text-white">${text}</p>
+        <div class="bg-indigo-100 dark:bg-slate-800 p-4 rounded-2xl rounded-tr-sm w-10/12 self-end shadow-sm">
+            <p class="text-sm text-slate-800 dark:text-white">${text}</p>
         </div>`;
         input.value = '';
         history.scrollTop = history.scrollHeight;
 
-        // Append Loading Message
         const loadingId = 'loading-' + Date.now();
         history.innerHTML += `
-        <div id="${loadingId}" class="bg-indigo-900/30 border border-indigo-500/20 p-4 rounded-2xl rounded-tl-sm w-11/12 flex items-center gap-2">
+        <div id="${loadingId}" class="bg-white dark:bg-indigo-900/30 border border-slate-200 dark:border-indigo-500/20 p-4 rounded-2xl rounded-tl-sm w-11/12 flex items-center gap-2 shadow-sm">
             <div class="w-2 h-2 bg-indigo-500 rounded-full animate-bounce"></div>
             <div class="w-2 h-2 bg-indigo-500 rounded-full animate-bounce" style="animation-delay: 0.1s"></div>
             <div class="w-2 h-2 bg-indigo-500 rounded-full animate-bounce" style="animation-delay: 0.2s"></div>
@@ -227,17 +215,16 @@
             document.getElementById(loadingId).remove();
             
             history.innerHTML += `
-            <div class="bg-indigo-900/30 border border-indigo-500/20 p-4 rounded-2xl rounded-tl-sm w-11/12 shadow-md">
-                <p class="text-sm text-indigo-50 whitespace-pre-wrap">${data.graviton_response}</p>
+            <div class="bg-white dark:bg-indigo-900/30 border border-slate-200 dark:border-indigo-500/20 p-4 rounded-2xl rounded-tl-sm w-11/12 shadow-sm">
+                <p class="text-sm text-slate-800 dark:text-indigo-50 whitespace-pre-wrap">${data.graviton_response}</p>
             </div>`;
             history.scrollTop = history.scrollHeight;
         } catch(e) {
             document.getElementById(loadingId).remove();
-            history.innerHTML += `<div class="bg-red-900/30 p-4 rounded-2xl w-11/12"><p class="text-sm text-red-200">Error: ${e.message}</p></div>`;
+            history.innerHTML += `<div class="bg-red-50 dark:bg-red-900/30 p-4 rounded-2xl w-11/12"><p class="text-sm text-red-600 dark:text-red-200">Error: ${e.message}</p></div>`;
         }
     }
 
-    // Enter key sends chat
     document.getElementById('chat-input').addEventListener('keypress', function (e) {
         if (e.key === 'Enter') sendChatMessage();
     });
