@@ -8,7 +8,7 @@
   "description": "AI-Powered Data Intelligence",
   "icons": [
     {
-      "src": "https://cdn-icons-png.flaticon.com/512/3260/3260838.png",
+      "src": "/static/icon.png",
       "sizes": "512x512",
       "type": "image/png"
     }
