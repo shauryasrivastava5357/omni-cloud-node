@@ -4,68 +4,53 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Graviton AI</title>
-    <!-- Tailwind CSS for premium styling -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
     <link rel="manifest" href="/static/manifest.json">
     <meta name="theme-color" content="#0F172A">
     <style>
         body { font-family: 'Inter', sans-serif; background-color: #0F172A; color: #F8FAFC; }
         .glass-card { background: rgba(30, 41, 59, 0.7); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.1); }
-        /* Hide scrollbar for a cleaner app feel */
         ::-webkit-scrollbar { display: none; }
     </style>
 </head>
 <body class="flex items-center justify-center min-h-screen p-4">
 
-    <!-- Mobile App Container -->
     <div class="w-full max-w-md h-full flex flex-col gap-6">
         
-        <!-- Header -->
-        <div class="text-center pt-8 pb-4">
-            <h1 class="text-4xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-indigo-500 tracking-tight">
-                Graviton
-            </h1>
-            <p class="text-slate-400 text-sm mt-1 font-medium">Autonomous Intelligence Engine</p>
+        <div class="text-center pt-4 pb-2">
+            <h1 class="text-4xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-indigo-500 tracking-tight">Graviton</h1>
+            <p class="text-slate-400 text-sm mt-1 font-medium">Omnichannel Intelligence Engine</p>
         </div>
 
-        <!-- Action Buttons -->
-        <div class="grid grid-cols-1 gap-4">
-            <button onclick="fetchData('/trending', 'Ingesting global data streams...')" 
-                class="relative overflow-hidden group bg-gradient-to-br from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 text-white font-semibold py-4 px-6 rounded-2xl shadow-lg transition-all active:scale-95">
-                <div class="flex items-center justify-center gap-2">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 002-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
-                    <span>1. Ingest Live Data</span>
-                </div>
+        <div class="grid grid-cols-1 gap-3">
+            <button onclick="fetchData('/trending', 'Ingesting global data streams...')" class="bg-gradient-to-br from-blue-600 to-blue-700 hover:from-blue-500 hover:to-blue-600 text-white font-semibold py-3 px-6 rounded-xl shadow-lg transition-all active:scale-95 text-left flex items-center justify-between">
+                <span>1. Ingest Global Data</span>
+                <svg class="w-5 h-5 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 002-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
             </button>
-
-            <button onclick="fetchData('/history', 'Accessing secure vault...')" 
-                class="relative overflow-hidden group bg-slate-800 hover:bg-slate-700 border border-slate-700 text-white font-semibold py-4 px-6 rounded-2xl shadow-lg transition-all active:scale-95">
-                <div class="flex items-center justify-center gap-2">
-                    <svg class="w-5 h-5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4"></path></svg>
-                    <span>2. View Database Vault</span>
-                </div>
+            <button onclick="fetchData('/history', 'Accessing secure vault...')" class="bg-slate-800 hover:bg-slate-700 border border-slate-700 text-white font-semibold py-3 px-6 rounded-xl shadow-lg transition-all active:scale-95 text-left flex items-center justify-between">
+                <span>2. View Discovery Feed</span>
+                <svg class="w-5 h-5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4"></path></svg>
             </button>
-
-            <button onclick="fetchData('/summarize', 'Initializing Gemini AI Models...')" 
-                class="relative overflow-hidden group bg-gradient-to-br from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-semibold py-4 px-6 rounded-2xl shadow-lg shadow-emerald-500/20 transition-all active:scale-95">
-                <div class="flex items-center justify-center gap-2">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
-                    <span>3. Run AI Analytics</span>
-                </div>
+            <button onclick="fetchData('/summarize', 'Initializing Macro-Trend Analysis...')" class="bg-gradient-to-br from-emerald-500 to-teal-600 hover:from-emerald-400 hover:to-teal-500 text-white font-semibold py-3 px-6 rounded-xl shadow-lg shadow-emerald-500/20 transition-all active:scale-95 text-left flex items-center justify-between">
+                <span>3. Global AI Report</span>
+                <svg class="w-5 h-5 opacity-70" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
             </button>
         </div>
 
-        <!-- Output Console -->
-        <div class="glass-card rounded-2xl p-5 mt-4 min-h-[250px] flex flex-col shadow-2xl">
-            <div class="flex items-center gap-2 mb-3 border-b border-slate-700 pb-3">
+        <div class="mt-2 flex gap-2">
+            <input type="text" id="ai-query" placeholder="Query the vault..." class="flex-1 bg-slate-900 text-white rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-indigo-500 border border-slate-700 text-sm">
+            <button onclick="askGraviton()" class="bg-indigo-600 hover:bg-indigo-500 text-white px-5 py-3 rounded-xl font-bold transition-all active:scale-95 shadow-lg shadow-indigo-500/30">Ask</button>
+        </div>
+
+        <div class="glass-card rounded-xl p-4 mt-2 min-h-[300px] flex flex-col shadow-2xl">
+            <div class="flex items-center gap-2 mb-3 border-b border-slate-700 pb-2">
                 <div class="w-3 h-3 rounded-full bg-red-500"></div>
                 <div class="w-3 h-3 rounded-full bg-yellow-500"></div>
                 <div class="w-3 h-3 rounded-full bg-green-500"></div>
-                <span class="text-xs text-slate-400 ml-2 font-mono uppercase tracking-wider">Terminal Output</span>
+                <span class="text-xs text-slate-400 ml-2 font-mono uppercase tracking-wider">Graviton Output</span>
             </div>
-            <pre id="output" class="text-sm text-blue-200 font-mono whitespace-pre-wrap word-wrap break-word overflow-y-auto max-h-[400px]">System ready. Awaiting command...</pre>
+            <div id="output" class="text-sm text-blue-200 font-mono whitespace-pre-wrap word-wrap break-word overflow-y-auto max-h-[400px]">System ready. Awaiting command...</div>
         </div>
     </div>
 
@@ -77,7 +62,54 @@
             try {
                 const response = await fetch(endpoint);
                 const data = await response.json();
-                outputDiv.innerText = JSON.stringify(data, null, 4);
+                
+                if (endpoint === '/history' && Array.isArray(data)) {
+                    let htmlContent = '<div class="flex flex-col gap-3 mt-2">';
+                    data.forEach(item => {
+                        let platformName = item.source.split('-')[0].split(' ')[0];
+                        htmlContent += `
+                        <div class="bg-slate-800/80 border border-slate-700 rounded-xl p-4 shadow-lg hover:border-indigo-500/50 transition-all">
+                            <span class="text-xs font-bold text-indigo-400 uppercase tracking-wider">${item.source}</span>
+                            <h3 class="text-sm font-semibold text-white mt-1 mb-2 leading-tight">${item.title}</h3>
+                            <p class="text-xs text-slate-400 mb-3 line-clamp-2">${item.raw_summary}</p>
+                            <a href="${item.url}" target="_blank" rel="noopener noreferrer" class="inline-flex items-center gap-1 text-xs bg-indigo-600/20 text-indigo-300 hover:bg-indigo-600 hover:text-white px-3 py-1.5 rounded-lg font-medium transition-all">
+                                View on ${platformName} <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
+                            </a>
+                        </div>`;
+                    });
+                    htmlContent += '</div>';
+                    outputDiv.innerHTML = htmlContent;
+                } else if (data.status === "success" && data.ai_macro_analysis) {
+                    outputDiv.innerHTML = `<span class="text-emerald-300 font-bold">Executive Briefing:</span>\n\n${data.ai_macro_analysis}`;
+                } else {
+                    outputDiv.innerText = JSON.stringify(data, null, 4);
+                }
+            } catch (error) {
+                outputDiv.innerHTML = `<span class="text-red-400">System Error: ${error.message}</span>`;
+            }
+        }
+
+        async function askGraviton() {
+            const input = document.getElementById('ai-query');
+            const question = input.value;
+            if (!question) return;
+            
+            const outputDiv = document.getElementById('output');
+            outputDiv.innerHTML = `<span class="animate-pulse text-indigo-400">Querying data vault: "${question}"...</span>`;
+            input.value = ''; 
+            
+            try {
+                const response = await fetch('/ask', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ question: question })
+                });
+                const data = await response.json();
+                if(data.status === "success") {
+                    outputDiv.innerHTML = `<span class="text-indigo-300 font-bold">Query:</span> ${data.query}\n\n<span class="text-emerald-300 font-bold">Graviton AI:</span>\n${data.graviton_response}`;
+                } else {
+                    outputDiv.innerText = JSON.stringify(data, null, 4);
+                }
             } catch (error) {
                 outputDiv.innerHTML = `<span class="text-red-400">System Error: ${error.message}</span>`;
             }

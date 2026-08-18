@@ -1,26 +1,24 @@
-from flask import Flask, jsonify, render_template
-import os
-import requests
+from flask import Flask, jsonify, render_template, request
 import sqlite3
 import google.generativeai as genai
-from flask import Flask, jsonify
+import os
+import requests
 
+# 1. App Initialization (Configured for PWA static files)
 app = Flask(__name__, static_folder='static')
 
-# 1. Initialize the AI
+# 2. AI Configuration (Decoupled & dynamic)
 genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
-
-# Dynamically fetch the model version from the cloud, with a built-in safety fallback
 target_model = os.environ.get("GEMINI_MODEL_VERSION", "gemini-3.6-flash")
 ai_model = genai.GenerativeModel(target_model)
 
-# 2. Database Connection
+# 3. Database Connection
 def get_db_connection():
-    conn = sqlite3.connect('telemetry.db')
+    conn = sqlite3.connect('vault.db')
     conn.row_factory = sqlite3.Row
     return conn
 
-# 3. THE FIX: Re-added the database initialization!
+# Initialize Database Table
 def init_db():
     conn = get_db_connection()
     conn.execute('''
@@ -36,76 +34,115 @@ def init_db():
     conn.commit()
     conn.close()
 
-init_db() # Ensure the vault exists when the server spins up
+init_db()
 
+# 4. Core Routes
 @app.route('/')
 def home():
     return render_template('index.html')
 
 @app.route('/trending', methods=['GET'])
 def get_trending():
-    api_url = "https://api.spaceflightnewsapi.net/v4/articles/?limit=5"
-    response = requests.get(api_url)
-    
-    if response.status_code != 200:
-        return jsonify({"error": "Failed to pull data"}), 500
-
-    raw_data = response.json()
     conn = get_db_connection()
+    new_data_count = 0
 
-    for article in raw_data.get('results', []):
-        conn.execute('''
-            INSERT INTO articles (title, source, url, raw_summary, published_at)
-            VALUES (?, ?, ?, ?, ?)
-        ''', (article.get("title"), article.get("news_site"), article.get("url"), article.get("summary"), article.get("published_at")))
+    # Stream 1: Global Aerospace News
+    try:
+        space_res = requests.get("https://api.spaceflightnewsapi.net/v4/articles/?limit=3").json()
+        for article in space_res.get('results', []):
+            conn.execute('INSERT INTO articles (title, source, url, raw_summary, published_at) VALUES (?, ?, ?, ?, ?)',
+                         (article.get("title"), article.get("news_site"), article.get("url"), article.get("summary"), str(article.get("published_at"))))
+            new_data_count += 1
+    except Exception as e: print(f"Space API Error: {e}")
+
+    # Stream 2: Hacker News (Tech & Startup Virals)
+    try:
+        hn_top = requests.get("https://hacker-news.firebaseio.com/v0/topstories.json").json()[:3]
+        for story_id in hn_top:
+            story = requests.get(f"https://hacker-news.firebaseio.com/v0/item/{story_id}.json").json()
+            url = story.get("url", f"https://news.ycombinator.com/item?id={story_id}")
+            conn.execute('INSERT INTO articles (title, source, url, raw_summary, published_at) VALUES (?, ?, ?, ?, ?)',
+                         (story.get("title"), "Hacker News", url, f"Score: {story.get('score')} | Top Tech Trend", str(story.get("time"))))
+            new_data_count += 1
+    except Exception as e: print(f"HN API Error: {e}")
+
+    # Stream 3: Reddit (Viral Social Discussions)
+    try:
+        headers = {'User-Agent': 'Graviton-App/1.0'}
+        reddit_res = requests.get("https://www.reddit.com/r/technology/hot.json?limit=3", headers=headers).json()
+        for post in reddit_res.get('data', {}).get('children', []):
+            data = post['data']
+            conn.execute('INSERT INTO articles (title, source, url, raw_summary, published_at) VALUES (?, ?, ?, ?, ?)',
+                         (data.get("title"), "Reddit - r/technology", data.get("url"), f"Upvotes: {data.get('ups')} | Viral Discussion", str(data.get("created_utc"))))
+            new_data_count += 1
+    except Exception as e: print(f"Reddit API Error: {e}")
+
+    # [Future Integration Placeholder: Twitter/X & Instagram via TagX/Data365 APIs]
+    # Data architecture is ready for these endpoints once API keys are acquired.
 
     conn.commit()
     conn.close()
-    return jsonify({"status": "success", "message": "5 new articles captured."})
+    return jsonify({"status": "success", "message": f"Omnichannel ingestion complete. {new_data_count} new trends locked in the vault."})
 
 @app.route('/history', methods=['GET'])
 def get_history():
     conn = get_db_connection()
-    articles = conn.execute('SELECT * FROM articles ORDER BY id DESC').fetchall()
+    articles = conn.execute('SELECT * FROM articles ORDER BY id DESC LIMIT 15').fetchall()
     conn.close()
-    return jsonify({"total_saved": len(articles)})
+    return jsonify([dict(ix) for ix in articles])
 
 @app.route('/summarize', methods=['GET'])
-def summarize_latest():
-    try: 
+def summarize_data():
+    try:
         conn = get_db_connection()
-        # 1. Analytics Upgrade: Fetch the 10 most recent articles instead of just 1
-        recent_articles = conn.execute('SELECT * FROM articles ORDER BY id DESC LIMIT 10').fetchall()
+        articles = conn.execute('SELECT * FROM articles ORDER BY id DESC LIMIT 10').fetchall()
         conn.close()
 
-        if not recent_articles:
-            return jsonify({"error": "No articles in the vault. Run /trending first."})
+        if not articles:
+            return jsonify({"error": "Vault is empty. Ingest data first."})
 
-        # 2. Compile the raw data for the AI
-        compiled_data = ""
-        for article in recent_articles:
-            compiled_data += f"- {article['title']}: {article['raw_summary']}\n"
-
-        # 3. Advanced Analytical Prompt
-        prompt = f"""
-        You are an elite data analyst. Review the following recent news articles and provide a 
-        macro-trend sentiment analysis. Give me a 3-bullet point executive briefing on the overall 
-        narrative of these articles, highlighting any major positive, negative, or technological trends.
+        batch_text = "\n".join([f"Source: {a['source']} | Trend: {a['title']}" for a in articles])
         
-        Raw Data:
-        {compiled_data}
+        prompt = f"""
+        You are Graviton, an elite AI intelligence engine. Analyze the following trending data from global networks.
+        Provide a highly professional executive briefing on the macro-trends, sentiment, and key takeaways.
+        
+        Data Vault:
+        {batch_text}
         """
-
-        # Generate the response
         response = ai_model.generate_content(prompt)
         
-        return jsonify({
-            "status": "success",
-            "articles_analyzed": len(recent_articles),
-            "ai_macro_analysis": response.text
-        })
+        return jsonify({"status": "success", "ai_macro_analysis": response.text})
     except Exception as e:
-        return jsonify({"error": str(e), "type": "AI or Database Failure"}), 400
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/ask', methods=['POST'])
+def ask_ai():
+    try:
+        user_question = request.json.get("question")
+        if not user_question:
+            return jsonify({"error": "No question provided"}), 400
+
+        conn = get_db_connection()
+        recent_articles = conn.execute('SELECT * FROM articles ORDER BY id DESC LIMIT 20').fetchall()
+        conn.close()
+
+        compiled_data = "\n".join([f"[{a['source']}] {a['title']}: {a['raw_summary']}" for a in recent_articles])
+
+        prompt = f"""
+        You are Graviton. Answer the user's question using ONLY this real-time data vault telemetry. 
+        If the data lacks the answer, state that current tracking lacks telemetry on that topic.
+        
+        Vault Data:
+        {compiled_data}
+        
+        User Query: {user_question}
+        """
+        response = ai_model.generate_content(prompt)
+        
+        return jsonify({"status": "success", "query": user_question, "graviton_response": response.text})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(debug=True, host='0.0.0.0', port=5000)
