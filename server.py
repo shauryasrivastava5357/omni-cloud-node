@@ -5,10 +5,10 @@ import os
 import requests
 import ingestion
 
-# 1. App Initialization (Configured for PWA static files)
+# 1. App Initialization
 app = Flask(__name__, static_folder='static')
 
-# 2. AI Configuration (Decoupled & dynamic)
+# 2. AI Configuration
 genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
 target_model = os.environ.get("GEMINI_MODEL_VERSION", "gemini-1.5-flash")
 ai_model = genai.GenerativeModel(target_model)
@@ -32,9 +32,8 @@ def manifest():
 @app.route('/trending', methods=['GET'])
 def get_trending():
     try:
-        # Triggers the master switch in ingestion.py
         ingestion.run_full_omnichannel_scan()
-        return jsonify({"status": "success", "message": "Omnichannel vault sync complete. E-Commerce, YouTube, and Global News data secured."}), 200
+        return jsonify({"status": "success", "message": "Omnichannel vault sync complete. E-Commerce, YouTube, and Global News data secured with visuals."}), 200
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 
@@ -42,8 +41,8 @@ def get_trending():
 def get_history():
     try:
         conn = get_db_connection()
-        # Grabs the latest 20 items from the vault for the Live Radar feed
-        items = conn.execute('SELECT source, title, raw_summary, url FROM history ORDER BY id DESC LIMIT 20').fetchall()
+        # Upgraded to pull image_url from the vault
+        items = conn.execute('SELECT source, title, raw_summary, url, image_url FROM history ORDER BY id DESC LIMIT 20').fetchall()
         conn.close()
         return jsonify([dict(ix) for ix in items]), 200
     except Exception as e:
@@ -87,6 +86,5 @@ def ask_graviton():
 
 # 6. Server Execution
 if __name__ == '__main__':
-    # Binds to the port Render assigns automatically
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port)

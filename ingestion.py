@@ -6,15 +6,17 @@ import datetime
 
 # Database Initialization
 def init_vault():
-    """Ensures the SQLite vault and history table exist before ingestion."""
+    """Wipes the old table and rebuilds it with the new image_url column."""
     conn = sqlite3.connect('vault.db')
     cursor = conn.cursor()
-    cursor.execute('''CREATE TABLE IF NOT EXISTS history 
+    cursor.execute('DROP TABLE IF EXISTS history')
+    cursor.execute('''CREATE TABLE history 
                       (id INTEGER PRIMARY KEY AUTOINCREMENT, 
                        source TEXT, 
                        title TEXT, 
                        raw_summary TEXT, 
-                       url TEXT)''')
+                       url TEXT,
+                       image_url TEXT)''')
     conn.commit()
     conn.close()
 
@@ -24,7 +26,6 @@ def connect_vault():
 # 1. The Open Gates: Global News
 def ingest_news():
     print("Scanning Global News Trends...")
-    # Google News RSS feed for Top Stories tailored to the Indian market
     news_url = "https://news.google.com/rss?hl=en-IN&gl=IN&ceid=IN:en"
     
     try:
@@ -37,9 +38,11 @@ def ingest_news():
             title = entry.title
             link = entry.link
             summary = f"Published: {entry.published}"
+            # Standard placeholder icon for news articles
+            image_url = "https://cdn-icons-png.flaticon.com/512/2965/2965879.png"
             
-            cursor.execute("INSERT INTO history (source, title, raw_summary, url) VALUES (?, ?, ?, ?)", 
-                           ("GOOGLE NEWS", title, summary, link))
+            cursor.execute("INSERT INTO history (source, title, raw_summary, url, image_url) VALUES (?, ?, ?, ?, ?)", 
+                           ("GOOGLE NEWS", title, summary, link, image_url))
             count += 1
             
         conn.commit()
@@ -51,7 +54,6 @@ def ingest_news():
 # 2. The Open Gates: YouTube Viral Trends
 def ingest_youtube():
     print("Scanning YouTube Viral Trends...")
-    # YouTube's RSS feed for the "Popular on YouTube" playlist
     youtube_url = "https://www.youtube.com/feeds/videos.xml?playlist_id=PLrEnWoR732-BHrPp_Pm8_VleD68f9s14-"
     
     try:
@@ -66,8 +68,12 @@ def ingest_youtube():
             author = entry.author.replace("\n", "").strip() 
             summary = f"Trending video by {author}"
             
-            cursor.execute("INSERT INTO history (source, title, raw_summary, url) VALUES (?, ?, ?, ?)", 
-                           ("YOUTUBE", title, summary, link))
+            # Extract the unique video ID to generate the high-res thumbnail link
+            video_id = link.split('v=')[-1]
+            image_url = f"https://img.youtube.com/vi/{video_id}/hqdefault.jpg"
+            
+            cursor.execute("INSERT INTO history (source, title, raw_summary, url, image_url) VALUES (?, ?, ?, ?, ?)", 
+                           ("YOUTUBE", title, summary, link, image_url))
             count += 1
             
         conn.commit()
@@ -95,14 +101,18 @@ def ingest_ecommerce():
         for item in soup.find_all('div', class_='css-xrzmfa'):
             title_element = item.find('div', class_='css-x3m3vd')
             link_element = item.find('a')
+            img_element = item.find('img') # Hunts for the product image
             
             if title_element and link_element:
                 title = title_element.text.strip()
                 link = "https://www.nykaa.com" + link_element.get('href')
                 summary = "Trending luxury item discovered in the Indian market."
                 
-                cursor.execute("INSERT INTO history (source, title, raw_summary, url) VALUES (?, ?, ?, ?)", 
-                               ("NYKAA", title, summary, link))
+                # Extracts the image source, leaves blank if none found
+                image_url = img_element.get('src') if img_element else ""
+                
+                cursor.execute("INSERT INTO history (source, title, raw_summary, url, image_url) VALUES (?, ?, ?, ?, ?)", 
+                               ("NYKAA", title, summary, link, image_url))
                 count += 1
                 
         conn.commit()
@@ -111,12 +121,6 @@ def ingest_ecommerce():
     except Exception as e:
         print(f"E-commerce infiltration failed: {e}")
 
-# 4. The Fortresses: Social Media (X, Instagram, Facebook)
-def ingest_social_fortresses():
-    print("Preparing infrastructure to infiltrate X, Instagram, and Facebook...")
-    # Next phase: This will require Selenium or specialized web-drivers to bypass login walls.
-    pass
-
 # The Master Switch
 def run_full_omnichannel_scan():
     print(f"[{datetime.datetime.now()}] Initiating Omnichannel Data Ingestion...")
@@ -124,7 +128,6 @@ def run_full_omnichannel_scan():
     ingest_news()
     ingest_youtube()
     ingest_ecommerce()
-    ingest_social_fortresses()
     print("Ingestion Complete. The Vault is updated and ready for Gemini analysis.")
 
 if __name__ == "__main__":
