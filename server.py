@@ -56,41 +56,6 @@ def get_trending():
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 
-    # Stream 1: Global Aerospace News
-    try:
-        space_res = requests.get("https://api.spaceflightnewsapi.net/v4/articles/?limit=3").json()
-        for article in space_res.get('results', []):
-            conn.execute('INSERT INTO articles (title, source, url, raw_summary, published_at) VALUES (?, ?, ?, ?, ?)',
-                         (article.get("title"), article.get("news_site"), article.get("url"), article.get("summary"), str(article.get("published_at"))))
-            new_data_count += 1
-    except Exception as e: print(f"Space API Error: {e}")
-
-    # Stream 2: Hacker News (Tech & Startup Virals)
-    try:
-        hn_top = requests.get("https://hacker-news.firebaseio.com/v0/topstories.json").json()[:3]
-        for story_id in hn_top:
-            story = requests.get(f"https://hacker-news.firebaseio.com/v0/item/{story_id}.json").json()
-            url = story.get("url", f"https://news.ycombinator.com/item?id={story_id}")
-            conn.execute('INSERT INTO articles (title, source, url, raw_summary, published_at) VALUES (?, ?, ?, ?, ?)',
-                         (story.get("title"), "Hacker News", url, f"Score: {story.get('score')} | Top Tech Trend", str(story.get("time"))))
-            new_data_count += 1
-    except Exception as e: print(f"HN API Error: {e}")
-
-    # Stream 3: Reddit (Viral Social Discussions)
-    try:
-        headers = {'User-Agent': 'Graviton-App/1.0'}
-        reddit_res = requests.get("https://www.reddit.com/r/technology/hot.json?limit=3", headers=headers).json()
-        for post in reddit_res.get('data', {}).get('children', []):
-            data = post['data']
-            conn.execute('INSERT INTO articles (title, source, url, raw_summary, published_at) VALUES (?, ?, ?, ?, ?)',
-                         (data.get("title"), "Reddit - r/technology", data.get("url"), f"Upvotes: {data.get('ups')} | Viral Discussion", str(data.get("created_utc"))))
-            new_data_count += 1
-    except Exception as e: print(f"Reddit API Error: {e}")
-
-    conn.commit()
-    conn.close()
-    return jsonify({"status": "success", "message": f"Omnichannel ingestion complete. {new_data_count} new trends locked in the vault."})
-
 @app.route('/history', methods=['GET'])
 def get_history():
     conn = get_db_connection()
