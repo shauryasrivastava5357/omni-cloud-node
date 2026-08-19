@@ -10,7 +10,7 @@ app = Flask(__name__, static_folder='static')
 
 # 2. AI Configuration (Decoupled & dynamic)
 genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
-target_model = os.environ.get("GEMINI_MODEL_VERSION", "gemini-3.6-flash")
+target_model = os.environ.get("GEMINI_MODEL_VERSION", "gemini-1.5-flash")
 ai_model = genai.GenerativeModel(target_model)
 
 # 3. Database Connection
@@ -19,38 +19,20 @@ def get_db_connection():
     conn.row_factory = sqlite3.Row
     return conn
 
-# Initialize Database Table
-def init_db():
-    conn = get_db_connection()
-    conn.execute('''
-        CREATE TABLE IF NOT EXISTS articles (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            title TEXT,
-            source TEXT,
-            url TEXT,
-            raw_summary TEXT,
-            published_at TEXT
-        )
-    ''')
-    conn.commit()
-    conn.close()
-
-init_db()
-
-# 4. Core Routes
-
+# 4. Core Application Routes
 @app.route('/')
-def home():
+def index():
     return render_template('index.html')
 
-# CRITICAL PWA FIX: Force Flask to serve the manifest directly
 @app.route('/manifest.json')
-def serve_manifest():
+def manifest():
     return send_from_directory('static', 'manifest.json', mimetype='application/manifest+json')
 
+# 5. Intelligence Engine Routes
 @app.route('/trending', methods=['GET'])
 def get_trending():
     try:
+        # Triggers the master switch in ingestion.py
         ingestion.run_full_omnichannel_scan()
         return jsonify({"status": "success", "message": "Omnichannel vault sync complete. E-Commerce, YouTube, and Global News data secured."}), 200
     except Exception as e:
@@ -58,63 +40,53 @@ def get_trending():
 
 @app.route('/history', methods=['GET'])
 def get_history():
-    conn = get_db_connection()
-    articles = conn.execute('SELECT * FROM articles ORDER BY id DESC LIMIT 15').fetchall()
-    conn.close()
-    return jsonify([dict(ix) for ix in articles])
+    try:
+        conn = get_db_connection()
+        # Grabs the latest 20 items from the vault for the Live Radar feed
+        items = conn.execute('SELECT source, title, raw_summary, url FROM history ORDER BY id DESC LIMIT 20').fetchall()
+        conn.close()
+        return jsonify([dict(ix) for ix in items]), 200
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
 
 @app.route('/summarize', methods=['GET'])
-def summarize_data():
+def summarize_vault():
     try:
         conn = get_db_connection()
-        articles = conn.execute('SELECT * FROM articles ORDER BY id DESC LIMIT 10').fetchall()
+        items = conn.execute('SELECT source, title FROM history ORDER BY id DESC LIMIT 15').fetchall()
         conn.close()
 
-        if not articles:
-            return jsonify({"error": "Vault is empty. Ingest data first."})
+        if not items:
+            return jsonify({"ai_macro_analysis": "The intelligence vault is currently empty. Run Ingestion first."}), 200
 
-        batch_text = "\n".join([f"Source: {a['source']} | Trend: {a['title']}" for a in articles])
+        context = "\n".join([f"- [{item['source']}] {item['title']}" for item in items])
+        prompt = f"Analyze these current trending topics and provide a highly professional, brief executive macro-trend briefing:\n{context}"
         
-        prompt = f"""
-        You are Graviton, an elite AI intelligence engine. Analyze the following trending data from global networks.
-        Provide a highly professional executive briefing on the macro-trends, sentiment, and key takeaways.
-        
-        Data Vault:
-        {batch_text}
-        """
         response = ai_model.generate_content(prompt)
-        
-        return jsonify({"status": "success", "ai_macro_analysis": response.text})
+        return jsonify({"ai_macro_analysis": response.text}), 200
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"status": "error", "message": str(e)}), 500
 
 @app.route('/ask', methods=['POST'])
-def ask_ai():
+def ask_graviton():
     try:
-        user_question = request.json.get("question")
-        if not user_question:
-            return jsonify({"error": "No question provided"}), 400
-
+        data = request.get_json()
+        user_question = data.get('question', '')
+        
         conn = get_db_connection()
-        recent_articles = conn.execute('SELECT * FROM articles ORDER BY id DESC LIMIT 20').fetchall()
+        items = conn.execute('SELECT source, title, raw_summary FROM history ORDER BY id DESC LIMIT 20').fetchall()
         conn.close()
-
-        compiled_data = "\n".join([f"[{a['source']}] {a['title']}: {a['raw_summary']}" for a in recent_articles])
-
-        prompt = f"""
-        You are Graviton. Answer the user's question using ONLY this real-time data vault telemetry. 
-        If the data lacks the answer, state that current tracking lacks telemetry on that topic.
         
-        Vault Data:
-        {compiled_data}
+        context = "\n".join([f"[{item['source']}] {item['title']} - {item['raw_summary']}" for item in items])
+        prompt = f"Context from the intelligence vault:\n{context}\n\nUser Question: {user_question}\nAnswer the user confidently as Graviton, an advanced omnichannel intelligence assistant."
         
-        User Query: {user_question}
-        """
         response = ai_model.generate_content(prompt)
-        
-        return jsonify({"status": "success", "query": user_question, "graviton_response": response.text})
+        return jsonify({"graviton_response": response.text}), 200
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"status": "error", "message": str(e)}), 500
 
+# 6. Server Execution
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    # Binds to the port Render assigns automatically
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host='0.0.0.0', port=port)
