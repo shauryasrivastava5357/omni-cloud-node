@@ -3,6 +3,7 @@ import sqlite3
 import google.generativeai as genai
 import os
 import requests
+import ingestion
 
 # 1. App Initialization (Configured for PWA static files)
 app = Flask(__name__, static_folder='static')
@@ -49,8 +50,11 @@ def serve_manifest():
 
 @app.route('/trending', methods=['GET'])
 def get_trending():
-    conn = get_db_connection()
-    new_data_count = 0
+    try:
+        ingestion.run_full_omnichannel_scan()
+        return jsonify({"status": "success", "message": "Omnichannel vault sync complete. E-Commerce, YouTube, and Global News data secured."}), 200
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
 
     # Stream 1: Global Aerospace News
     try:
