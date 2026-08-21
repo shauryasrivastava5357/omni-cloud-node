@@ -1,5 +1,6 @@
 from flask import Flask, jsonify, render_template, request, send_from_directory
-import sqlite3
+import psycopg2
+from psycopg2.extras import RealDictCursor
 import google.generativeai as genai
 import os
 import ingestion
@@ -12,20 +13,19 @@ genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
 target_model = os.environ.get("GEMINI_MODEL_VERSION", "gemini-1.5-flash")
 ai_model = genai.GenerativeModel(target_model)
 
-# 2. Database Connection
+# 2. Permanent Cloud Database Connection
 def get_db_connection():
-    conn = sqlite3.connect('vault.db')
-    conn.row_factory = sqlite3.Row
+    db_url = os.environ.get("DATABASE_URL")
+    # Automatically connects to the Render PostgreSQL instance
+    conn = psycopg2.connect(db_url)
     return conn
 
 # 3. Autonomous Background Scheduler
 def scheduled_ingestion():
-    print("Initiating automatic background sync...")
+    print("Initiating automatic background sync to PostgreSQL...")
     ingestion.run_full_omnichannel_scan()
 
-# Initializes the scheduler to run in the background
 scheduler = BackgroundScheduler()
-# Triggers the scraping script automatically every 60 minutes
 scheduler.add_job(func=scheduled_ingestion, trigger="interval", minutes=60)
 scheduler.start()
 
@@ -40,10 +40,9 @@ def manifest():
 
 @app.route('/trending', methods=['GET'])
 def get_trending():
-    # Kept as a manual override just in case you ever want to force a refresh
     try:
         ingestion.run_full_omnichannel_scan()
-        return jsonify({"status": "success", "message": "Manual sync forced. All platforms updated."}), 200
+        return jsonify({"status": "success", "message": "Manual sync forced. All platforms securely vaulted in PostgreSQL."}), 200
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 
@@ -51,7 +50,12 @@ def get_trending():
 def get_history():
     try:
         conn = get_db_connection()
-        items = conn.execute('SELECT source, title, raw_summary, url, image_url FROM history ORDER BY id DESC LIMIT 50').fetchall()
+        # RealDictCursor converts PostgreSQL rows into JSON-ready dictionaries
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
+        cursor.execute('SELECT source, title, raw_summary, url, image_url FROM history ORDER BY id DESC LIMIT 50')
+        items = cursor.fetchall()
+        
+        cursor.close()
         conn.close()
         return jsonify([dict(ix) for ix in items]), 200
     except Exception as e:
@@ -62,12 +66,19 @@ def ask_graviton():
     try:
         data = request.get_json()
         user_question = data.get('question', '')
+        
         conn = get_db_connection()
-        items = conn.execute('SELECT source, title, raw_summary FROM history ORDER BY id DESC LIMIT 20').fetchall()
+        cursor = conn.cursor(cursor_factory=RealDictCursor)
+        cursor.execute('SELECT source, title, raw_summary FROM history ORDER BY id DESC LIMIT 20')
+        items = cursor.fetchall()
+        
+        cursor.close()
         conn.close()
+        
         context = "\n".join([f"[{item['source']}] {item['title']} - {item['raw_summary']}" for item in items])
         prompt = f"Context from the universal vault:\n{context}\n\nUser Question: {user_question}\nAnswer the user confidently as Graviton."
         response = ai_model.generate_content(prompt)
+        
         return jsonify({"graviton_response": response.text}), 200
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
