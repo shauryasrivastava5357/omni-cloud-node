@@ -95,6 +95,10 @@ def ingest_amazon():
         headers = {"x-rapidapi-key": api_key, "x-rapidapi-host": "real-time-amazon-data.p.rapidapi.com"}
         
         response = requests.get(url, headers=headers, params=querystring)
+        
+        # THE DIAGNOSTIC TRAP
+        print(f"RAPIDAPI RESPONSE: {response.text}")
+        
         products = response.json().get('data', {}).get('products', [])[:3]
         
         conn = connect_vault()
@@ -110,14 +114,10 @@ def ingest_amazon():
 
 def ingest_flipkart():
     print("Scanning Flipkart...")
-    # To make this live, duplicate the Amazon logic above and plug in a Flipkart RapidAPI endpoint
-    # For now, it fails gracefully without crashing the server if no API is connected.
     pass
 
 def ingest_myntra():
     print("Scanning Myntra...")
-    # To make this live, duplicate the Amazon logic above and plug in a Myntra RapidAPI endpoint
-    # For now, it fails gracefully without crashing the server if no API is connected.
     pass
 
 # --- THE MASTER SWITCH ---
