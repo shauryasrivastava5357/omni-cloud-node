@@ -44,7 +44,7 @@ class _MainDashboardState extends State<MainDashboard> {
   int _currentIndex = 0;
 
   final List<Widget> _screens = [
-    const RadarScreen(), // Trends is now the primary startup screen
+    const RadarScreen(), 
     const AIAssistantScreen(),
     const ClusterTopologyScreen(),
   ];
@@ -85,9 +85,8 @@ class RadarScreen extends StatefulWidget {
 class _RadarScreenState extends State<RadarScreen> {
   List<dynamic> _radarItems = [];
   bool _isLoading = false;
-  String _selectedFilter = 'ALL'; // Keeps track of the selected horizontal tab
+  String _selectedFilter = 'ALL'; 
 
-  // The visual data for your horizontal filter bar
   final List<Map<String, dynamic>> _platforms = [
     {'name': 'ALL', 'icon': Icons.apps},
     {'name': 'AMAZON', 'icon': Icons.shopping_cart},
@@ -121,7 +120,6 @@ class _RadarScreenState extends State<RadarScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Dynamically filters the list based on the horizontal tab tapped
     List<dynamic> filteredItems = _selectedFilter == 'ALL' 
         ? _radarItems 
         : _radarItems.where((item) => (item['source'] ?? '').toString().toUpperCase() == _selectedFilter).toList();
@@ -140,7 +138,6 @@ class _RadarScreenState extends State<RadarScreen> {
       ),
       body: Column(
         children: [
-          // THE HORIZONTAL FILTER BAR
           Container(
             height: 70,
             padding: const EdgeInsets.symmetric(vertical: 10),
@@ -185,7 +182,6 @@ class _RadarScreenState extends State<RadarScreen> {
             ),
           ),
           
-          // THE MAIN FEED
           Expanded(
             child: _isLoading 
                 ? const Center(child: CircularProgressIndicator(color: Colors.cyanAccent))
@@ -366,12 +362,13 @@ class _ClusterTopologyScreenState extends State<ClusterTopologyScreen> {
               minimumSize: const Size(double.infinity, 50),
               side: const BorderSide(color: Colors.cyanAccent),
             ),
-            onPressed: () async {
-              // Manual override trigger for testing
-              await http.get(Uri.parse('$API_URL/trending'));
-              if (context.mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Manual override: Cloud is updating...')));
-              }
+            onPressed: () {
+              // 1. Show the visual feedback IMMEDIATELY when tapped
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Cloud override initiated! Scrapers are running in the background...'))
+              );
+              // 2. Fire the network request into the void without freezing the app
+              http.get(Uri.parse('$API_URL/trending'));
             },
             icon: const Icon(Icons.sync_problem),
             label: const Text('Force Cloud Override Sync'),

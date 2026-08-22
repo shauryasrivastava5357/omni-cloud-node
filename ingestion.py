@@ -95,20 +95,33 @@ def ingest_amazon():
         headers = {"x-rapidapi-key": api_key, "x-rapidapi-host": "real-time-amazon-data.p.rapidapi.com"}
         
         response = requests.get(url, headers=headers, params=querystring)
+        data_json = response.json()
         
-        # THE DIAGNOSTIC TRAP
-        print(f"RAPIDAPI RESPONSE: {response.text}")
+        # INDESTRUCTIBLE PARSING LOGIC: Auto-detects the array
+        products = []
+        data_block = data_json.get('data', {})
         
-        products = response.json().get('data', {}).get('products', [])[:3]
+        if isinstance(data_block, list):
+            products = data_block
+        elif isinstance(data_block, dict):
+            for key, val in data_block.items():
+                if isinstance(val, list):
+                    products = val
+                    break
+                    
+        if not products:
+            print("Amazon silent failure: No product array found in the JSON response.")
+            return
         
         conn = connect_vault()
         cursor = conn.cursor()
-        for item in products:
+        for item in products[:3]:
             cursor.execute("INSERT INTO history (source, title, raw_summary, url, image_url) VALUES (%s, %s, %s, %s, %s)", 
                            ("AMAZON", item.get('product_title', 'Unknown'), f"Live Price: {item.get('product_price', 'N/A')}", item.get('product_url', ''), item.get('product_photo', '')))
         conn.commit()
         cursor.close()
         conn.close()
+        print("Amazon data successfully vaulted!")
     except Exception as e:
         print(f"Amazon failed: {e}")
 
