@@ -1,3 +1,4 @@
+# v2.0 - INDESTRUCTIBLE SCRAPER FORCE PUSH
 import psycopg2
 import requests
 from bs4 import BeautifulSoup
@@ -23,8 +24,6 @@ def init_vault():
     conn.commit()
     cursor.close()
     conn.close()
-
-# --- 1. THE OPEN FEEDS (Stable, No API Key Needed) ---
 
 def ingest_news():
     print("Scanning Global News Trends...")
@@ -81,8 +80,6 @@ def ingest_nykaa():
     except Exception as e:
         print(f"Nykaa failed: {e}")
 
-# --- 2. THE STEALTH APIS (Requires RapidAPI Keys in Render Environment) ---
-
 def ingest_amazon():
     print("Scanning Live Amazon India Trends via Stealth API...")
     api_key = os.environ.get("RAPIDAPI_KEY")
@@ -133,7 +130,6 @@ def ingest_myntra():
     print("Scanning Myntra...")
     pass
 
-# --- THE MASTER SWITCH ---
 def run_full_omnichannel_scan():
     print(f"[{datetime.datetime.now()}] Initiating Final Universal Platform Sync...")
     init_vault()  
