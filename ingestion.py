@@ -12,7 +12,6 @@ def connect_vault():
 def init_vault():
     conn = connect_vault()
     cursor = conn.cursor()
-    # PostgreSQL uses 'SERIAL' to auto-increment IDs
     cursor.execute('DROP TABLE IF EXISTS history')
     cursor.execute('''CREATE TABLE history 
                       (id SERIAL PRIMARY KEY, 
@@ -25,15 +24,15 @@ def init_vault():
     cursor.close()
     conn.close()
 
+# --- 1. THE OPEN FEEDS (Stable, No API Key Needed) ---
+
 def ingest_news():
     print("Scanning Global News Trends...")
-    news_url = "https://news.google.com/rss?hl=en-IN&gl=IN&ceid=IN:en"
     try:
-        feed = feedparser.parse(news_url)
+        feed = feedparser.parse("https://news.google.com/rss?hl=en-IN&gl=IN&ceid=IN:en")
         conn = connect_vault()
         cursor = conn.cursor()
         for entry in feed.entries[:3]:
-            # PostgreSQL requires '%s' instead of SQLite's '?'
             cursor.execute("INSERT INTO history (source, title, raw_summary, url, image_url) VALUES (%s, %s, %s, %s, %s)", 
                            ("NEWS", entry.title, f"Published: {entry.published}", entry.link, "https://cdn-icons-png.flaticon.com/512/2965/2965879.png"))
         conn.commit()
@@ -44,9 +43,8 @@ def ingest_news():
 
 def ingest_youtube():
     print("Scanning YouTube Viral Trends...")
-    youtube_url = "https://www.youtube.com/feeds/videos.xml?playlist_id=PLrEnWoR732-BHrPp_Pm8_VleD68f9s14-"
     try:
-        feed = feedparser.parse(youtube_url)
+        feed = feedparser.parse("https://www.youtube.com/feeds/videos.xml?playlist_id=PLrEnWoR732-BHrPp_Pm8_VleD68f9s14-")
         conn = connect_vault()
         cursor = conn.cursor()
         for entry in feed.entries[:3]:
@@ -62,10 +60,9 @@ def ingest_youtube():
 
 def ingest_nykaa():
     print("Scanning Nykaa Trends...")
-    target_url = "https://www.nykaa.com/sp/trending-now/trending-now"
-    headers = {'User-Agent': 'Mozilla/5.0'}
+    headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
     try:
-        response = requests.get(target_url, headers=headers)
+        response = requests.get("https://www.nykaa.com/sp/trending-now/trending-now", headers=headers)
         soup = BeautifulSoup(response.text, 'html.parser')
         conn = connect_vault()
         cursor = conn.cursor()
@@ -82,52 +79,50 @@ def ingest_nykaa():
         cursor.close()
         conn.close()
     except Exception as e:
-        pass
+        print(f"Nykaa failed: {e}")
+
+# --- 2. THE STEALTH APIS (Requires RapidAPI Keys in Render Environment) ---
 
 def ingest_amazon():
-    print("Scanning Amazon India...")
-    conn = connect_vault()
-    cursor = conn.cursor()
+    print("Scanning Live Amazon India Trends via Stealth API...")
+    api_key = os.environ.get("RAPIDAPI_KEY")
+    if not api_key:
+        print("Amazon Bypass Failed: RAPIDAPI_KEY missing.")
+        return
     try:
-        cursor.execute("INSERT INTO history (source, title, raw_summary, url, image_url) VALUES (%s, %s, %s, %s, %s)", 
-                       ("AMAZON", "Bestselling Tech & Smartwatches", "Currently trending electronics and smart wearables leading Amazon India sales.", "https://www.amazon.in/gp/bestsellers/electronics/", "https://images-eu.ssl-images-amazon.com/images/G/31/img22/Wearables/PC_CategoryCard_758X608_1._SY608_CB614835787_.jpg"))
+        url = "https://real-time-amazon-data.p.rapidapi.com/search"
+        querystring = {"query":"trending products","page":"1","country":"IN","sort_by":"REVIEWS"}
+        headers = {"x-rapidapi-key": api_key, "x-rapidapi-host": "real-time-amazon-data.p.rapidapi.com"}
+        
+        response = requests.get(url, headers=headers, params=querystring)
+        products = response.json().get('data', {}).get('products', [])[:3]
+        
+        conn = connect_vault()
+        cursor = conn.cursor()
+        for item in products:
+            cursor.execute("INSERT INTO history (source, title, raw_summary, url, image_url) VALUES (%s, %s, %s, %s, %s)", 
+                           ("AMAZON", item.get('product_title', 'Unknown'), f"Live Price: {item.get('product_price', 'N/A')}", item.get('product_url', ''), item.get('product_photo', '')))
         conn.commit()
-    except Exception:
-        pass
-    finally:
         cursor.close()
         conn.close()
+    except Exception as e:
+        print(f"Amazon failed: {e}")
 
 def ingest_flipkart():
     print("Scanning Flipkart...")
-    conn = connect_vault()
-    cursor = conn.cursor()
-    try:
-        cursor.execute("INSERT INTO history (source, title, raw_summary, url, image_url) VALUES (%s, %s, %s, %s, %s)", 
-                       ("FLIPKART", "Top Trending Streetwear Sneakers", "Most popular streetwear and athletic shoes currently dominating Flipkart searches.", "https://www.flipkart.com/mens-footwear/sports-shoes/pr?sid=osp,cil,1cu", "https://rukminim2.flixcart.com/image/850/1000/xif0q/shoe/7/2/m/6-tm-12-6-trm-white-original-imagjqyzz8z9jrgf.jpeg"))
-        conn.commit()
-    except Exception:
-        pass
-    finally:
-        cursor.close()
-        conn.close()
+    # To make this live, duplicate the Amazon logic above and plug in a Flipkart RapidAPI endpoint
+    # For now, it fails gracefully without crashing the server if no API is connected.
+    pass
 
 def ingest_myntra():
-    print("Scanning Myntra Fashion...")
-    conn = connect_vault()
-    cursor = conn.cursor()
-    try:
-        cursor.execute("INSERT INTO history (source, title, raw_summary, url, image_url) VALUES (%s, %s, %s, %s, %s)", 
-                       ("MYNTRA", "Gen-Z Fashion & Oversized Fits", "The hottest selling casual wear currently peaking on Myntra's main catalog.", "https://www.myntra.com/oversized-tshirts", "https://assets.myntrasassets.com/dpr_1.5,q_60,w_400,c_limit,fl_progressive/assets/images/22753654/2023/4/13/b7dce7e7-47b2-4d5f-8d26-7fde4bb937f21681373507119-The-Souled-Store-Men-Tshirts-9641681373506540-1.jpg"))
-        conn.commit()
-    except Exception:
-        pass
-    finally:
-        cursor.close()
-        conn.close()
+    print("Scanning Myntra...")
+    # To make this live, duplicate the Amazon logic above and plug in a Myntra RapidAPI endpoint
+    # For now, it fails gracefully without crashing the server if no API is connected.
+    pass
 
+# --- THE MASTER SWITCH ---
 def run_full_omnichannel_scan():
-    print(f"[{datetime.datetime.now()}] Initiating Universal Platform Sync to PostgreSQL...")
+    print(f"[{datetime.datetime.now()}] Initiating Final Universal Platform Sync...")
     init_vault()  
     ingest_news()
     ingest_youtube()
@@ -135,7 +130,7 @@ def run_full_omnichannel_scan():
     ingest_amazon()
     ingest_flipkart()
     ingest_myntra()
-    print("Sync Complete. All platforms vaulted permanently.")
+    print("Sync Complete. Database updated.")
 
 if __name__ == "__main__":
     run_full_omnichannel_scan()
