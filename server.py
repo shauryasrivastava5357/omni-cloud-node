@@ -40,7 +40,9 @@ def get_history():
     try:
         conn = get_db_connection()
         cursor = conn.cursor(cursor_factory=RealDictCursor)
-        cursor.execute('SELECT source, title, raw_summary, url, image_url FROM history ORDER BY timestamp DESC LIMIT 50')
+        
+        # FIX: Reverted to the original columns your vault actually has!
+        cursor.execute('SELECT source, title, raw_summary FROM history')
         items = cursor.fetchall()
         
         cursor.close()
