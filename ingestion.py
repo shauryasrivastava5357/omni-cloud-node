@@ -1,4 +1,4 @@
-# v2.0 - INDESTRUCTIBLE SCRAPER FORCE PUSH
+# v2.0 - INDESTRUCTIBLE SCRAPER FORCE PUSH WITH OPEN GRAPH IMAGE EXTRACTION
 import psycopg2
 import requests
 from bs4 import BeautifulSoup
@@ -14,16 +14,38 @@ def init_vault():
     conn = connect_vault()
     cursor = conn.cursor()
     cursor.execute('DROP TABLE IF EXISTS history')
-    cursor.execute('''CREATE TABLE history 
-                      (id SERIAL PRIMARY KEY, 
-                       source TEXT, 
-                       title TEXT, 
-                       raw_summary TEXT, 
+    cursor.execute('''CREATE TABLE history
+                      (id SERIAL PRIMARY KEY,
+                       source TEXT,
+                       title TEXT,
+                       raw_summary TEXT,
                        url TEXT,
                        image_url TEXT)''')
     conn.commit()
     cursor.close()
     conn.close()
+
+# --- THE NEW OPEN GRAPH IMAGE EXTRACTOR ---
+def extract_real_image(url):
+    try:
+        # We spoof a real browser so news sites don't block the request
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36'
+        }
+        response = requests.get(url, headers=headers, timeout=8)
+        soup = BeautifulSoup(response.text, 'html.parser')
+        
+        # Hunt for the specific meta tag used for social media link previews
+        og_image = soup.find("meta", property="og:image")
+        if og_image and og_image.get("content"):
+            return og_image["content"]
+            
+    except Exception as e:
+        print(f"Image extraction failed for {url}: {e}")
+        pass
+        
+    # If the site completely blocks us, return a sleek, generic tech/news placeholder
+    return "https://images.unsplash.com/photo-1504711434969-e33886168f5c?q=80&w=800&auto=format&fit=crop"
 
 def ingest_news():
     print("Scanning Global News Trends...")
@@ -32,8 +54,11 @@ def ingest_news():
         conn = connect_vault()
         cursor = conn.cursor()
         for entry in feed.entries[:3]:
-            cursor.execute("INSERT INTO history (source, title, raw_summary, url, image_url) VALUES (%s, %s, %s, %s, %s)", 
-                           ("NEWS", entry.title, f"Published: {entry.published}", entry.link, "https://cdn-icons-png.flaticon.com/512/2965/2965879.png"))
+            print(f"Extracting high-res image for: {entry.title[:30]}...")
+            real_image = extract_real_image(entry.link)
+            
+            cursor.execute("INSERT INTO history (source, title, raw_summary, url, image_url) VALUES (%s, %s, %s, %s, %s)",
+                           ("NEWS", entry.title, f"Published: {entry.published}", entry.link, real_image))
         conn.commit()
         cursor.close()
         conn.close()
@@ -49,7 +74,8 @@ def ingest_youtube():
         for entry in feed.entries[:3]:
             video_id = entry.link.split('v=')[-1]
             image_url = f"https://img.youtube.com/vi/{video_id}/hqdefault.jpg"
-            cursor.execute("INSERT INTO history (source, title, raw_summary, url, image_url) VALUES (%s, %s, %s, %s, %s)", 
+            
+            cursor.execute("INSERT INTO history (source, title, raw_summary, url, image_url) VALUES (%s, %s, %s, %s, %s)",
                            ("YOUTUBE", entry.title, f"Trending video by {entry.author.strip()}", entry.link, image_url))
         conn.commit()
         cursor.close()
@@ -69,10 +95,11 @@ def ingest_nykaa():
             title_el = item.find('div', class_='css-x3m3vd')
             link_el = item.find('a')
             img_el = item.find('img')
+            
             if title_el and link_el:
                 link = "https://www.nykaa.com" + link_el.get('href')
                 img = img_el.get('src') if img_el else ""
-                cursor.execute("INSERT INTO history (source, title, raw_summary, url, image_url) VALUES (%s, %s, %s, %s, %s)", 
+                cursor.execute("INSERT INTO history (source, title, raw_summary, url, image_url) VALUES (%s, %s, %s, %s, %s)",
                                ("NYKAA", title_el.text.strip(), "Trending item on Nykaa.", link, img))
         conn.commit()
         cursor.close()
@@ -88,7 +115,7 @@ def ingest_amazon():
         return
     try:
         url = "https://real-time-amazon-data.p.rapidapi.com/search"
-        querystring = {"query":"trending products","page":"1","country":"IN","sort_by":"REVIEWS"}
+        querystring = {"query":"trending products","page":"1","country":"IN","sort_by":"RELEVANCE"}
         headers = {"x-rapidapi-key": api_key, "x-rapidapi-host": "real-time-amazon-data.p.rapidapi.com"}
         
         response = requests.get(url, headers=headers, params=querystring)
@@ -109,12 +136,14 @@ def ingest_amazon():
         if not products:
             print("Amazon silent failure: No product array found in the JSON response.")
             return
-        
+            
         conn = connect_vault()
         cursor = conn.cursor()
         for item in products[:3]:
-            cursor.execute("INSERT INTO history (source, title, raw_summary, url, image_url) VALUES (%s, %s, %s, %s, %s)", 
-                           ("AMAZON", item.get('product_title', 'Unknown'), f"Live Price: {item.get('product_price', 'N/A')}", item.get('product_url', ''), item.get('product_photo', '')))
+            price = item.get('product_price', 'Unknown')
+            summary = f"Live Price: {price}"
+            cursor.execute("INSERT INTO history (source, title, raw_summary, url, image_url) VALUES (%s, %s, %s, %s, %s)",
+                           ("AMAZON", item.get('product_title', 'Unknown'), summary, item.get('product_url', ''), item.get('product_photo', '')))
         conn.commit()
         cursor.close()
         conn.close()
@@ -132,7 +161,7 @@ def ingest_myntra():
 
 def run_full_omnichannel_scan():
     print(f"[{datetime.datetime.now()}] Initiating Final Universal Platform Sync...")
-    init_vault()  
+    init_vault()
     ingest_news()
     ingest_youtube()
     ingest_nykaa()
