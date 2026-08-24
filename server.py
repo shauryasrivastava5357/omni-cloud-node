@@ -41,8 +41,8 @@ def get_history():
         conn = get_db_connection()
         cursor = conn.cursor(cursor_factory=RealDictCursor)
         
-        # FIX: Reverted to the original columns your vault actually has!
-        cursor.execute('SELECT source, title, raw_summary FROM history')
+        # RESTORED: Pulling url and image_url for the UI, safely avoiding timestamp
+        cursor.execute('SELECT source, title, raw_summary, url, image_url FROM history')
         items = cursor.fetchall()
         
         cursor.close()

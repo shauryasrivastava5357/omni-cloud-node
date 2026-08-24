@@ -23,7 +23,7 @@ class MyApp extends StatelessWidget {
       themeMode: ThemeMode.dark,
       darkTheme: ThemeData(
         brightness: Brightness.dark,
-        scaffoldBackgroundColor: Colors.black, // True black for edge-to-edge media
+        scaffoldBackgroundColor: Colors.black,
         colorScheme: const ColorScheme.dark(
           primary: Colors.cyanAccent,
           surface: Color(0xFF1E293B),
@@ -55,10 +55,9 @@ class _MainDashboardState extends State<MainDashboard> {
     return Scaffold(
       body: Stack(
         children: [
-          // The Main Screens
           _screens[_currentIndex],
           
-          // Floating Glassmorphism Navigation Bar
+          // Floating Nav Bar
           Positioned(
             bottom: 30,
             left: 40,
@@ -112,7 +111,7 @@ class _MainDashboardState extends State<MainDashboard> {
   }
 }
 
-// --- SCREEN 1: IMMERSIVE TIKTOK-STYLE FEED ---
+// --- SCREEN 1: IMMERSIVE FEED WITH FILTERS ---
 class ImmersiveFeedScreen extends StatefulWidget {
   const ImmersiveFeedScreen({super.key});
 
@@ -123,6 +122,16 @@ class ImmersiveFeedScreen extends StatefulWidget {
 class _ImmersiveFeedScreenState extends State<ImmersiveFeedScreen> {
   List<dynamic> _feedItems = [];
   bool _isLoading = true;
+  String _selectedFilter = 'ALL';
+
+  final List<Map<String, dynamic>> _platforms = [
+    {'name': 'ALL', 'icon': Icons.apps},
+    {'name': 'AMAZON', 'icon': Icons.shopping_cart},
+    {'name': 'MYNTRA', 'icon': Icons.checkroom},
+    {'name': 'FLIPKART', 'icon': Icons.local_mall},
+    {'name': 'INSTAGRAM', 'icon': Icons.camera_alt},
+    {'name': 'X', 'icon': Icons.close},
+  ];
 
   @override
   void initState() {
@@ -132,24 +141,17 @@ class _ImmersiveFeedScreenState extends State<ImmersiveFeedScreen> {
 
   Future<void> _fetchFeedData() async {
     try {
-      // Force a 60-second timeout to handle Render cold starts
-      final response = await http.get(Uri.parse('$API_URL/history'))
-          .timeout(const Duration(seconds: 60));
-          
+      final response = await http.get(Uri.parse('$API_URL/history')).timeout(const Duration(seconds: 60));
       if (response.statusCode == 200) {
         setState(() {
           _feedItems = json.decode(response.body);
           _isLoading = false;
         });
       } else {
-        // If Render throws a temporary error while waking up, stop the spinner
         setState(() => _isLoading = false);
-        debugPrint("Server woke up but threw an error: ${response.statusCode}");
       }
     } catch (e) {
-      // If the network drops or times out, stop the spinner
       setState(() => _isLoading = false);
-      debugPrint("Network error or timeout: $e");
     }
   }
 
@@ -159,21 +161,76 @@ class _ImmersiveFeedScreenState extends State<ImmersiveFeedScreen> {
       return const Center(child: CircularProgressIndicator(color: Colors.cyanAccent));
     }
 
-    if (_feedItems.isEmpty) {
-      return const Center(child: Text("No trends found in vault.", style: TextStyle(color: Colors.white54)));
-    }
+    List<dynamic> filteredItems = _selectedFilter == 'ALL'
+        ? _feedItems
+        : _feedItems.where((item) => (item['source'] ?? '').toString().toUpperCase() == _selectedFilter).toList();
 
-    return PageView.builder(
-      scrollDirection: Axis.vertical,
-      itemCount: _feedItems.length,
-      itemBuilder: (context, index) {
-        return FullScreenMediaCard(item: _feedItems[index], fullHistory: _feedItems);
-      },
+    return Stack(
+      children: [
+        // 1. The Swipe Feed
+        filteredItems.isEmpty
+            ? const Center(child: Text("No trends found in vault for this platform.", style: TextStyle(color: Colors.white54)))
+            : PageView.builder(
+                scrollDirection: Axis.vertical,
+                itemCount: filteredItems.length,
+                itemBuilder: (context, index) {
+                  return FullScreenMediaCard(item: filteredItems[index], fullHistory: _feedItems);
+                },
+              ),
+
+        // 2. The Restored Top Category Filters
+        Positioned(
+          top: 50,
+          left: 0,
+          right: 0,
+          child: SizedBox(
+            height: 40,
+            child: ListView.builder(
+              scrollDirection: Axis.horizontal,
+              itemCount: _platforms.length,
+              itemBuilder: (context, index) {
+                final platform = _platforms[index];
+                final isSelected = _selectedFilter == platform['name'];
+
+                return GestureDetector(
+                  onTap: () {
+                    setState(() {
+                      _selectedFilter = platform['name'];
+                    });
+                  },
+                  child: Container(
+                    margin: const EdgeInsets.only(left: 12, right: 4),
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    decoration: BoxDecoration(
+                      color: isSelected ? Colors.cyanAccent : Colors.black.withOpacity(0.5),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: isSelected ? Colors.transparent : Colors.white30),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(platform['icon'], size: 16, color: isSelected ? Colors.black : Colors.white),
+                        const SizedBox(width: 6),
+                        Text(
+                          platform['name'],
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 12,
+                            color: isSelected ? Colors.black : Colors.white,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
 
-// --- THE NEW EDGE-TO-EDGE MEDIA CARD ---
 class FullScreenMediaCard extends StatelessWidget {
   final dynamic item;
   final List<dynamic> fullHistory;
@@ -202,19 +259,19 @@ class FullScreenMediaCard extends StatelessWidget {
     return Stack(
       fit: StackFit.expand,
       children: [
-        // 1. Background Image (Full Screen)
+        // Background Image restored!
         imageUrl.isNotEmpty
             ? Image.network(imageUrl, fit: BoxFit.cover, errorBuilder: (ctx, err, stack) => _buildPlaceholder())
             : _buildPlaceholder(),
 
-        // 2. Dark Gradient Overlay (For Text Readability)
+        // Dark Gradient for text readability
         Container(
           decoration: BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
               colors: [
-                Colors.black.withOpacity(0.3),
+                Colors.black.withOpacity(0.4),
                 Colors.transparent,
                 Colors.black.withOpacity(0.8),
                 Colors.black,
@@ -224,9 +281,9 @@ class FullScreenMediaCard extends StatelessWidget {
           ),
         ),
 
-        // 3. Platform Badge (Top Right)
+        // Platform Badge
         Positioned(
-          top: 50,
+          top: 110, // Moved down slightly to clear the filters
           right: 20,
           child: ClipRRect(
             borderRadius: BorderRadius.circular(20),
@@ -247,11 +304,11 @@ class FullScreenMediaCard extends StatelessWidget {
           ),
         ),
 
-        // 4. Content Block (Bottom Left)
+        // Title and Summary Block
         Positioned(
-          bottom: 120, // Leaves room for the floating nav bar
+          bottom: 120, 
           left: 20,
-          right: 80, // Leaves room for interaction buttons later
+          right: 20, 
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -270,7 +327,6 @@ class FullScreenMediaCard extends StatelessWidget {
               ),
               const SizedBox(height: 16),
               
-              // Only show action/chart for E-commerce products right now
               if (isEcom)
                 ElevatedButton.icon(
                   style: ElevatedButton.styleFrom(
@@ -317,7 +373,7 @@ class FullScreenMediaCard extends StatelessWidget {
   }
 }
 
-// --- SCREEN 2: COPILOT ---
+// --- SCREENS 2 & 3: AI COPILOT & CLUSTER CONFIG ---
 class AIAssistantScreen extends StatefulWidget {
   const AIAssistantScreen({super.key});
   @override
@@ -417,7 +473,6 @@ class _AIAssistantScreenState extends State<AIAssistantScreen> {
   }
 }
 
-// --- SCREEN 3: CLUSTER CONFIG ---
 class ClusterTopologyScreen extends StatelessWidget {
   const ClusterTopologyScreen({super.key});
 
@@ -450,7 +505,6 @@ class ClusterTopologyScreen extends StatelessWidget {
   }
 }
 
-// --- ANALYTICS DASHBOARD ---
 class PriceAnalyticsChart extends StatelessWidget {
   final List<dynamic> historyData;
   final String targetProductTitle;
