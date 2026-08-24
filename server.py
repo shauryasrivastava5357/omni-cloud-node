@@ -1,58 +1,46 @@
-from flask import Flask, jsonify, render_template, request, send_from_directory
+import os
+import json
+from flask import Flask, jsonify, request
 import psycopg2
 from psycopg2.extras import RealDictCursor
 import google.generativeai as genai
-import os
 import ingestion
+
+# --- SCHEDULER IMPORTS ---
 from apscheduler.schedulers.background import BackgroundScheduler
+import atexit
 
-app = Flask(__name__, static_folder='static')
+app = Flask(__name__)
 
-# 1. AI Configuration
+# --- CONFIGURATIONS ---
+# Configure Gemini (Matching your ai_model naming convention)
 genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
-target_model = os.environ.get("GEMINI_MODEL_VERSION", "gemini-1.5-flash")
-ai_model = genai.GenerativeModel(target_model)
+ai_model = genai.GenerativeModel('gemini-pro')
 
-# 2. Permanent Cloud Database Connection
+# Permanent Cloud Database Connection
 def get_db_connection():
     db_url = os.environ.get("DATABASE_URL")
     # Automatically connects to the Render PostgreSQL instance
     conn = psycopg2.connect(db_url)
     return conn
 
-# 3. Autonomous Background Scheduler
-def scheduled_ingestion():
-    print("Initiating automatic background sync to PostgreSQL...")
-    ingestion.run_full_omnichannel_scan()
 
-scheduler = BackgroundScheduler()
-scheduler.add_job(func=scheduled_ingestion, trigger="interval", minutes=60)
-scheduler.start()
-
-# 4. App Routes
-@app.route('/')
-def index():
-    return render_template('index.html')
-
-@app.route('/manifest.json')
-def manifest():
-    return send_from_directory('static', 'manifest.json', mimetype='application/manifest+json')
-
+# --- API ROUTES ---
 @app.route('/trending', methods=['GET'])
 def get_trending():
     try:
         ingestion.run_full_omnichannel_scan()
-        return jsonify({"status": "success", "message": "Manual sync forced. All platforms securely vaulted in PostgreSQL."}), 200
+        return jsonify({"status": "success", "message": "Manual scan complete"}), 200
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
+
 
 @app.route('/history', methods=['GET'])
 def get_history():
     try:
         conn = get_db_connection()
-        # RealDictCursor converts PostgreSQL rows into JSON-ready dictionaries
         cursor = conn.cursor(cursor_factory=RealDictCursor)
-        cursor.execute('SELECT source, title, raw_summary, url, image_url FROM history ORDER BY id DESC LIMIT 50')
+        cursor.execute('SELECT source, title, raw_summary, url, image_url FROM history ORDER BY timestamp DESC LIMIT 50')
         items = cursor.fetchall()
         
         cursor.close()
@@ -61,28 +49,50 @@ def get_history():
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 
+
 @app.route('/ask', methods=['POST'])
 def ask_graviton():
     try:
         data = request.get_json()
         user_question = data.get('question', '')
         
+        if not user_question:
+            return jsonify({"error": "No question provided"}), 400
+            
+        # YOUR CUSTOM RAG PIPELINE
         conn = get_db_connection()
         cursor = conn.cursor(cursor_factory=RealDictCursor)
-        cursor.execute('SELECT source, title, raw_summary FROM history ORDER BY id DESC LIMIT 20')
+        cursor.execute('SELECT source, title, raw_summary FROM history')
         items = cursor.fetchall()
         
         cursor.close()
         conn.close()
         
         context = "\n".join([f"[{item['source']}] {item['title']} - {item['raw_summary']}" for item in items])
-        prompt = f"Context from the universal vault:\n{context}\n\nUser Question: {user_question}\nAnswer the user confidently as Graviton."
-        response = ai_model.generate_content(prompt)
+        prompt = f"Context from the universal vault:\n{context}\n\nUser Question: {user_question}"
         
+        response = ai_model.generate_content(prompt)
         return jsonify({"graviton_response": response.text}), 200
+        
     except Exception as e:
-        return jsonify({"status": "error", "message": str(e)}), 500
+        return jsonify({"error": str(e)}), 500
 
+
+# --- AUTONOMOUS BACKGROUND SCHEDULER ---
+def scheduled_ingestion():
+    print("Initiating automatic background sync to PostgreSQL...")
+    ingestion.run_full_omnichannel_scan()
+
+scheduler = BackgroundScheduler()
+# Running every 6 hours to build continuous price history
+scheduler.add_job(func=scheduled_ingestion, trigger="interval", hours=6)
+scheduler.start()
+
+# Ensures the scheduler shuts down cleanly if the server reboots
+atexit.register(lambda: scheduler.shutdown())
+
+
+# --- SERVER START ---
 if __name__ == '__main__':
-    port = int(os.environ.get('PORT', 5000))
+    port = int(os.environ.get('PORT', 10000))
     app.run(host='0.0.0.0', port=port)
