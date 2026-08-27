@@ -1,5 +1,4 @@
 import os
-import json
 from flask import Flask, jsonify, request
 import psycopg2
 from psycopg2.extras import RealDictCursor
@@ -24,7 +23,6 @@ def get_db_connection():
     conn = psycopg2.connect(db_url)
     return conn
 
-
 # --- API ROUTES ---
 @app.route('/trending', methods=['GET'])
 def get_trending():
@@ -34,51 +32,67 @@ def get_trending():
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 
-
 @app.route('/history', methods=['GET'])
 def get_history():
     try:
         conn = get_db_connection()
         cursor = conn.cursor(cursor_factory=RealDictCursor)
-        
+
         # RESTORED: Pulling url and image_url for the UI, safely avoiding timestamp
         cursor.execute('SELECT source, title, raw_summary, url, image_url FROM history')
         items = cursor.fetchall()
-        
+
         cursor.close()
         conn.close()
         return jsonify([dict(ix) for ix in items]), 200
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 
-
 @app.route('/ask', methods=['POST'])
 def ask_graviton():
     try:
         data = request.get_json()
         user_question = data.get('question', '')
-        
+
         if not user_question:
             return jsonify({"error": "No question provided"}), 400
-            
-        # YOUR CUSTOM RAG PIPELINE
+
+        # YOUR CUSTOM RAG PIPELINE (Upgraded)
         conn = get_db_connection()
         cursor = conn.cursor(cursor_factory=RealDictCursor)
-        cursor.execute('SELECT source, title, raw_summary FROM history')
+        
+        # Grab only the 50 most recent records so the AI context window doesn't explode
+        cursor.execute('SELECT source, title, raw_summary FROM history ORDER BY id DESC LIMIT 50')
         items = cursor.fetchall()
         
         cursor.close()
         conn.close()
+
+        # Format the raw SQL data into a clean, readable context string for Gemini
+        live_context = "LIVE DATABASE CONTEXT:\n"
+        for item in items:
+            live_context += f"- [{item['source']}] {item['title']} | {item['raw_summary']}\n"
+            
+        prompt = f"""
+        You are the elite AI Copilot for the Graviton app. You are a brilliant data analyst.
         
-        context = "\n".join([f"[{item['source']}] {item['title']} - {item['raw_summary']}" for item in items])
-        prompt = f"Context from the universal vault:\n{context}\n\nUser Question: {user_question}"
+        {live_context}
         
+        USER QUESTION: {user_question}
+        
+        INSTRUCTIONS:
+        1. Answer the user's question by analyzing the LIVE DATABASE CONTEXT provided above.
+        2. Be concise, highly intelligent, and format your answer beautifully.
+        3. If the user asks a general question not related to the data, answer normally, but prioritize the live data if relevant.
+        """
+
         response = ai_model.generate_content(prompt)
-        return jsonify({"graviton_response": response.text}), 200
         
+        # Outputting exactly what your Flutter app expects
+        return jsonify({"graviton_response": response.text}), 200
+
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-
 
 # --- AUTONOMOUS BACKGROUND SCHEDULER ---
 def scheduled_ingestion():
@@ -92,7 +106,6 @@ scheduler.start()
 
 # Ensures the scheduler shuts down cleanly if the server reboots
 atexit.register(lambda: scheduler.shutdown())
-
 
 # --- SERVER START ---
 if __name__ == '__main__':
