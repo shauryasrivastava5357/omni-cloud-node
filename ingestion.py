@@ -1,10 +1,16 @@
-# v2.0 - INDESTRUCTIBLE SCRAPER FORCE PUSH WITH OPEN GRAPH IMAGE EXTRACTION
+# v3.0 - AI SENTIMENT PIPELINE
 import psycopg2
 import requests
 from bs4 import BeautifulSoup
 import feedparser
 import datetime
 import os
+import time
+import google.generativeai as genai
+
+# --- AI CONFIGURATION ---
+genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
+ai_model = genai.GenerativeModel('gemini-pro')
 
 def connect_vault():
     db_url = os.environ.get("DATABASE_URL")
@@ -25,27 +31,30 @@ def init_vault():
     cursor.close()
     conn.close()
 
-# --- THE NEW OPEN GRAPH IMAGE EXTRACTOR ---
 def extract_real_image(url):
     try:
-        # We spoof a real browser so news sites don't block the request
-        headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36'
-        }
+        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
         response = requests.get(url, headers=headers, timeout=8)
         soup = BeautifulSoup(response.text, 'html.parser')
-        
-        # Hunt for the specific meta tag used for social media link previews
         og_image = soup.find("meta", property="og:image")
         if og_image and og_image.get("content"):
             return og_image["content"]
-            
-    except Exception as e:
-        print(f"Image extraction failed for {url}: {e}")
+    except:
         pass
-        
-    # If the site completely blocks us, return a sleek, generic tech/news placeholder
     return "https://images.unsplash.com/photo-1504711434969-e33886168f5c?q=80&w=800&auto=format&fit=crop"
+
+# --- THE COGNITIVE CLASSIFIER ---
+def get_ai_tag(title):
+    try:
+        prompt = f"Categorize this trend in EXACTLY two words with an appropriate emoji at the start (e.g., '🚨 Breaking', '🎬 Cinema', '💻 Tech', '👔 Style', '💄 Beauty', '📉 Deal'). Trend: {title}"
+        response = ai_model.generate_content(prompt)
+        tag = response.text.strip().replace("\n", "")
+        # Fallback if Gemini gets too wordy
+        if len(tag) > 20: 
+            return "🔥 Trending"
+        return tag
+    except Exception as e:
+        return "🔥 Trending"
 
 def ingest_news():
     print("Scanning Global News Trends...")
@@ -54,11 +63,16 @@ def ingest_news():
         conn = connect_vault()
         cursor = conn.cursor()
         for entry in feed.entries[:3]:
-            print(f"Extracting high-res image for: {entry.title[:30]}...")
+            print(f"Extracting image & AI tag for: {entry.title[:30]}...")
             real_image = extract_real_image(entry.link)
+            ai_tag = get_ai_tag(entry.title)
+            
+            # Injecting the AI Tag into the summary for the Flutter UI
+            smart_summary = f"[{ai_tag}] • Published: {entry.published}"
             
             cursor.execute("INSERT INTO history (source, title, raw_summary, url, image_url) VALUES (%s, %s, %s, %s, %s)",
-                           ("NEWS", entry.title, f"Published: {entry.published}", entry.link, real_image))
+                           ("NEWS", entry.title, smart_summary, entry.link, real_image))
+            time.sleep(1) # Prevent API rate limiting
         conn.commit()
         cursor.close()
         conn.close()
@@ -74,9 +88,13 @@ def ingest_youtube():
         for entry in feed.entries[:3]:
             video_id = entry.link.split('v=')[-1]
             image_url = f"https://img.youtube.com/vi/{video_id}/hqdefault.jpg"
+            ai_tag = get_ai_tag(entry.title)
+            
+            smart_summary = f"[{ai_tag}] • Trending video by {entry.author.strip()}"
             
             cursor.execute("INSERT INTO history (source, title, raw_summary, url, image_url) VALUES (%s, %s, %s, %s, %s)",
-                           ("YOUTUBE", entry.title, f"Trending video by {entry.author.strip()}", entry.link, image_url))
+                           ("YOUTUBE", entry.title, smart_summary, entry.link, image_url))
+            time.sleep(1)
         conn.commit()
         cursor.close()
         conn.close()
@@ -99,8 +117,12 @@ def ingest_nykaa():
             if title_el and link_el:
                 link = "https://www.nykaa.com" + link_el.get('href')
                 img = img_el.get('src') if img_el else ""
+                ai_tag = get_ai_tag(title_el.text.strip())
+                
+                smart_summary = f"[{ai_tag}] • Trending item on Nykaa"
                 cursor.execute("INSERT INTO history (source, title, raw_summary, url, image_url) VALUES (%s, %s, %s, %s, %s)",
-                               ("NYKAA", title_el.text.strip(), "Trending item on Nykaa.", link, img))
+                               ("NYKAA", title_el.text.strip(), smart_summary, link, img))
+                time.sleep(1)
         conn.commit()
         cursor.close()
         conn.close()
@@ -108,7 +130,7 @@ def ingest_nykaa():
         print(f"Nykaa failed: {e}")
 
 def ingest_amazon():
-    print("Scanning Live Amazon India Trends via Stealth API...")
+    print("Scanning Live Amazon India Trends...")
     api_key = os.environ.get("RAPIDAPI_KEY")
     if not api_key:
         print("Amazon Bypass Failed: RAPIDAPI_KEY missing.")
@@ -121,7 +143,6 @@ def ingest_amazon():
         response = requests.get(url, headers=headers, params=querystring)
         data_json = response.json()
         
-        # INDESTRUCTIBLE PARSING LOGIC: Auto-detects the array
         products = []
         data_block = data_json.get('data', {})
         
@@ -134,16 +155,19 @@ def ingest_amazon():
                     break
                     
         if not products:
-            print("Amazon silent failure: No product array found in the JSON response.")
             return
             
         conn = connect_vault()
         cursor = conn.cursor()
         for item in products[:3]:
             price = item.get('product_price', 'Unknown')
-            summary = f"Live Price: {price}"
+            title = item.get('product_title', 'Unknown')
+            ai_tag = get_ai_tag(title)
+            
+            smart_summary = f"[{ai_tag}] • Live Price: {price}"
             cursor.execute("INSERT INTO history (source, title, raw_summary, url, image_url) VALUES (%s, %s, %s, %s, %s)",
-                           ("AMAZON", item.get('product_title', 'Unknown'), summary, item.get('product_url', ''), item.get('product_photo', '')))
+                           ("AMAZON", title, smart_summary, item.get('product_url', ''), item.get('product_photo', '')))
+            time.sleep(1)
         conn.commit()
         cursor.close()
         conn.close()
@@ -152,23 +176,19 @@ def ingest_amazon():
         print(f"Amazon failed: {e}")
 
 def ingest_flipkart():
-    print("Scanning Flipkart...")
     pass
 
 def ingest_myntra():
-    print("Scanning Myntra...")
     pass
 
 def run_full_omnichannel_scan():
-    print(f"[{datetime.datetime.now()}] Initiating Final Universal Platform Sync...")
+    print(f"[{datetime.datetime.now()}] Initiating Cognitive Omnichannel Sync...")
     init_vault()
     ingest_news()
     ingest_youtube()
     ingest_nykaa()
     ingest_amazon()
-    ingest_flipkart()
-    ingest_myntra()
-    print("Sync Complete. Database updated.")
+    print("Sync Complete. Intelligence applied and Database updated.")
 
 if __name__ == "__main__":
     run_full_omnichannel_scan()
