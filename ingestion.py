@@ -18,8 +18,8 @@ def connect_vault():
 def init_vault():
     conn = connect_vault()
     cursor = conn.cursor()
-    cursor.execute('DROP TABLE IF EXISTS history')
-    cursor.execute('''CREATE TABLE history
+    #cursor.execute('DROP TABLE IF EXISTS history')
+    cursor.execute('''CREATE TABLE IF NOT EXISTS history
                       (id SERIAL PRIMARY KEY,
                        source TEXT,
                        title TEXT,
