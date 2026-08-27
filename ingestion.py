@@ -1,4 +1,4 @@
-# v7.1 - OPTIMIZED SPEED OMNICHANNEL FEED
+# v8.0 - UNCAPPED OMNICHANNEL ENGINE (BACKGROUND THREADING)
 import psycopg2
 import requests
 from bs4 import BeautifulSoup
@@ -6,6 +6,7 @@ import feedparser
 import datetime
 import os
 import time
+import threading
 import google.generativeai as genai
 
 genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
@@ -18,7 +19,7 @@ def connect_vault():
 def init_vault():
     conn = connect_vault()
     cursor = conn.cursor()
-    #cursor.execute('DROP TABLE IF EXISTS history')
+    # SNOWBALL MODE: We do not drop the table. We append indefinitely.
     cursor.execute('''CREATE TABLE IF NOT EXISTS history
                       (id SERIAL PRIMARY KEY,
                        source TEXT,
@@ -32,7 +33,7 @@ def init_vault():
 
 def extract_real_image(url):
     try:
-        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'}
+        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
         response = requests.get(url, headers=headers, timeout=5)
         soup = BeautifulSoup(response.text, 'html.parser')
         og_image = soup.find("meta", property="og:image")
@@ -53,63 +54,68 @@ def get_ai_tag(title):
         return "🔥 Trending"
 
 def ingest_news():
-    print("Scanning News...")
+    print("Scanning ALL Global News...")
     try:
         feed = feedparser.parse("https://news.google.com/rss?hl=en-IN&gl=IN&ceid=IN:en")
         conn = connect_vault()
         cursor = conn.cursor()
-        for entry in feed.entries[:3]:
+        # LIMIT REMOVED: Ingesting the entire RSS feed
+        for entry in feed.entries:
             img = extract_real_image(entry.link)
             tag = get_ai_tag(entry.title)
             cursor.execute("INSERT INTO history (source, title, raw_summary, url, image_url) VALUES (%s, %s, %s, %s, %s)",
                            ("NEWS", entry.title, f"[{tag}] • Published: {entry.published}", entry.link, img))
+            time.sleep(0.5) # Prevent Google rate limits
         conn.commit()
         cursor.close()
         conn.close()
     except Exception as e: print(f"News error: {e}")
 
 def ingest_youtube():
-    print("Scanning YouTube...")
+    print("Scanning ALL YouTube Viral Trends...")
     try:
         feed = feedparser.parse("https://www.youtube.com/feeds/videos.xml?playlist_id=PLrEnWoR732-BHrPp_Pm8_VleD68f9s14-")
         conn = connect_vault()
         cursor = conn.cursor()
-        for entry in feed.entries[:3]:
+        # LIMIT REMOVED: Ingesting the entire trending playlist
+        for entry in feed.entries:
             vid = entry.link.split('v=')[-1]
             img = f"https://img.youtube.com/vi/{vid}/hqdefault.jpg"
             tag = get_ai_tag(entry.title)
             cursor.execute("INSERT INTO history (source, title, raw_summary, url, image_url) VALUES (%s, %s, %s, %s, %s)",
                            ("YOUTUBE", entry.title, f"[{tag}] • Video by {entry.author.strip()}", entry.link, img))
+            time.sleep(0.5)
         conn.commit()
         cursor.close()
         conn.close()
     except Exception as e: print(f"YT error: {e}")
 
 def ingest_amazon():
-    print("Scanning Amazon...")
+    print("Scanning ALL Amazon Deals...")
     api_key = os.environ.get("RAPIDAPI_KEY")
     if not api_key: return
     try:
         url = "https://real-time-amazon-data.p.rapidapi.com/search"
         querystring = {"query":"trending products","page":"1","country":"IN","sort_by":"RELEVANCE"}
         headers = {"x-rapidapi-key": api_key, "x-rapidapi-host": "real-time-amazon-data.p.rapidapi.com"}
-        res = requests.get(url, headers=headers, params=querystring, timeout=6)
+        res = requests.get(url, headers=headers, params=querystring, timeout=8)
         products = res.json().get('data', {}).get('products', [])
         conn = connect_vault()
         cursor = conn.cursor()
-        for item in products[:3]:
+        # LIMIT REMOVED: Ingesting all RapidAPI results
+        for item in products:
             title = item.get('product_title', 'Unknown')
             price = item.get('product_price', 'Unknown')
             tag = get_ai_tag(title)
             cursor.execute("INSERT INTO history (source, title, raw_summary, url, image_url) VALUES (%s, %s, %s, %s, %s)",
                            ("AMAZON", title, f"[{tag}] • Price: {price}", item.get('product_url', ''), item.get('product_photo', '')))
+            time.sleep(0.5)
         conn.commit()
         cursor.close()
         conn.close()
     except Exception as e: print(f"Amazon error: {e}")
 
 def ingest_flipkart():
-    print("Scanning Flipkart...")
     conn = connect_vault()
     cursor = conn.cursor()
     deals = [
@@ -125,7 +131,6 @@ def ingest_flipkart():
     conn.close()
 
 def ingest_myntra():
-    print("Scanning Myntra...")
     conn = connect_vault()
     cursor = conn.cursor()
     trends = [
@@ -141,7 +146,6 @@ def ingest_myntra():
     conn.close()
 
 def ingest_instagram():
-    print("Scanning Instagram...")
     conn = connect_vault()
     cursor = conn.cursor()
     reels = [
@@ -157,7 +161,6 @@ def ingest_instagram():
     conn.close()
 
 def ingest_x():
-    print("Scanning X...")
     conn = connect_vault()
     cursor = conn.cursor()
     tweets = [
@@ -172,8 +175,9 @@ def ingest_x():
     cursor.close()
     conn.close()
 
-def run_full_omnichannel_scan():
-    print(f"[{datetime.datetime.now()}] Starting Fast Omnichannel Scan...")
+# --- THE GHOST THREAD WORKER ---
+def _background_worker():
+    print(f"[{datetime.datetime.now()}] Background Thread Started. Scraping entire web...")
     init_vault()
     ingest_news()
     ingest_youtube()
@@ -182,7 +186,13 @@ def run_full_omnichannel_scan():
     ingest_myntra()
     ingest_instagram()
     ingest_x()
-    print("Scan complete successfully!")
+    print("Background Sync Complete! All uncapped data stored.")
+
+def run_full_omnichannel_scan():
+    # Instantly spawns the thread and returns, bypassing Render's 30-second crash limit
+    thread = threading.Thread(target=_background_worker)
+    thread.start()
+    print("Scan detached. Running silently in the background.")
 
 if __name__ == "__main__":
     run_full_omnichannel_scan()
