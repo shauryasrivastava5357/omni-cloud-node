@@ -61,7 +61,18 @@ class _MainDashboardState extends State<MainDashboard> {
   @override
   void initState() {
     super.initState();
-    _fetchFeedData();
+    _triggerLiveSync();
+  }
+
+  // Force-triggers a fresh scrape on the cloud node, then fetches newest items
+  Future<void> _triggerLiveSync() async {
+    try {
+      // 1. Wake up server and initiate live scrape
+      await http.get(Uri.parse('$API_URL/trending')).timeout(const Duration(seconds: 8));
+    } catch (_) {}
+    
+    // 2. Fetch newest items from database
+    await _fetchFeedData();
   }
 
   Future<void> _fetchFeedData() async {
@@ -95,7 +106,7 @@ class _MainDashboardState extends State<MainDashboard> {
         isLoading: _isLoading, 
         selectedFilter: _selectedFilter,
         onClearFilter: () => setState(() => _selectedFilter = 'ALL'),
-        onRefresh: _fetchFeedData,
+        onRefresh: _triggerLiveSync,
       ),
       ExploreSearchScreen(
         feedItems: _feedItems, 
@@ -229,7 +240,22 @@ class MagazineFeedScreen extends StatelessWidget {
             child: isLoading
                 ? const Center(child: CircularProgressIndicator(color: Color(0xFF1C1C1E)))
                 : filteredItems.isEmpty
-                    ? const Center(child: Text("No live transmissions. Pull to refresh.", style: TextStyle(color: Color(0xFF8E8E93))))
+                    ? Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(Icons.stream, size: 48, color: Color(0xFF8E8E93)),
+                            const SizedBox(height: 12),
+                            Text("No live transmissions for $selectedFilter.", style: const TextStyle(color: Color(0xFF8E8E93), fontWeight: FontWeight.bold)),
+                            const SizedBox(height: 12),
+                            ElevatedButton(
+                              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF1C1C1E), foregroundColor: Colors.white),
+                              onPressed: onRefresh,
+                              child: const Text("Trigger Live Scan"),
+                            )
+                          ],
+                        ),
+                      )
                     : RefreshIndicator(
                         color: const Color(0xFF1C1C1E),
                         backgroundColor: Colors.white,
@@ -249,7 +275,7 @@ class MagazineFeedScreen extends StatelessWidget {
   }
 }
 
-// --- SCREEN 2: ON-DEMAND EXPLORE & VIP SEARCH ---
+// --- SCREEN 2: CLEAN UNIVERSAL SEARCH & STREAMS ---
 class ExploreSearchScreen extends StatefulWidget {
   final List<dynamic> feedItems;
   final Function(String) onPlatformSelected;
@@ -266,7 +292,7 @@ class _ExploreSearchScreenState extends State<ExploreSearchScreen> {
   bool _isSearching = false;
   bool _hasSearched = false;
 
-  Future<void> _executeVIPSearch(String query) async {
+  Future<void> _executeSearch(String query) async {
     if (query.trim().isEmpty) return;
     setState(() {
       _isSearching = true;
@@ -308,7 +334,7 @@ class _ExploreSearchScreenState extends State<ExploreSearchScreen> {
         children: [
           const Text("Explore", style: TextStyle(fontSize: 34, fontWeight: FontWeight.w900, color: Color(0xFF1C1C1E), letterSpacing: -1.0)),
           const SizedBox(height: 6),
-          const Text("Search any influencer, celebrity, or trend in real time.", style: TextStyle(fontSize: 15, color: Color(0xFF8E8E93))),
+          const Text("Real-time telemetry across creators, stocks, and news.", style: TextStyle(fontSize: 15, color: Color(0xFF8E8E93))),
           const SizedBox(height: 20),
 
           // Universal Search Input Bar
@@ -320,15 +346,15 @@ class _ExploreSearchScreenState extends State<ExploreSearchScreen> {
             ),
             child: TextField(
               controller: _searchController,
-              onSubmitted: _executeVIPSearch,
+              onSubmitted: _executeSearch,
               style: const TextStyle(color: Color(0xFF1C1C1E), fontWeight: FontWeight.bold),
               decoration: InputDecoration(
-                hintText: "Search VIP (e.g. Elon Musk, Tom Cruise)...",
+                hintText: "Search topics, creators, or stocks...",
                 hintStyle: const TextStyle(color: Color(0xFF8E8E93), fontWeight: FontWeight.normal),
                 prefixIcon: const Icon(Icons.search, color: Color(0xFF1C1C1E)),
                 suffixIcon: IconButton(
                   icon: const Icon(Icons.arrow_forward_rounded, color: Color(0xFF007AFF)),
-                  onPressed: () => _executeVIPSearch(_searchController.text),
+                  onPressed: () => _executeSearch(_searchController.text),
                 ),
                 border: InputBorder.none,
                 contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
@@ -337,7 +363,7 @@ class _ExploreSearchScreenState extends State<ExploreSearchScreen> {
           ),
           const SizedBox(height: 30),
 
-          // Search Results Section
+          // Search Results
           if (_isSearching)
             const Center(
               child: Padding(
@@ -346,7 +372,7 @@ class _ExploreSearchScreenState extends State<ExploreSearchScreen> {
                   children: [
                     CircularProgressIndicator(color: Color(0xFF1C1C1E)),
                     SizedBox(height: 16),
-                    Text("Scanning Instagram, X, YouTube, and Global News...", style: TextStyle(color: Color(0xFF8E8E93), fontSize: 13, fontWeight: FontWeight.bold)),
+                    Text("Scanning live networks & news feeds...", style: TextStyle(color: Color(0xFF8E8E93), fontSize: 13, fontWeight: FontWeight.bold)),
                   ],
                 ),
               ),
@@ -355,13 +381,13 @@ class _ExploreSearchScreenState extends State<ExploreSearchScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text("LIVE DOSSIER", style: TextStyle(color: Color(0xFF8E8E93), fontSize: 12, letterSpacing: 1.5, fontWeight: FontWeight.bold)),
+                const Text("LIVE SEARCH RESULTS", style: TextStyle(color: Color(0xFF8E8E93), fontSize: 12, letterSpacing: 1.5, fontWeight: FontWeight.bold)),
                 GestureDetector(
                   onTap: () => setState(() {
                     _hasSearched = false;
                     _searchController.clear();
                   }),
-                  child: const Text("Clear Results", style: TextStyle(color: Color(0xFF007AFF), fontWeight: FontWeight.bold, fontSize: 12)),
+                  child: const Text("Clear", style: TextStyle(color: Color(0xFF007AFF), fontWeight: FontWeight.bold, fontSize: 12)),
                 ),
               ],
             ),
@@ -370,7 +396,7 @@ class _ExploreSearchScreenState extends State<ExploreSearchScreen> {
               Container(
                 padding: const EdgeInsets.all(24),
                 decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20)),
-                child: const Center(child: Text("No live transmissions located for this query.", style: TextStyle(color: Color(0xFF8E8E93)))),
+                child: const Center(child: Text("No live transmissions found. Try another query.", style: TextStyle(color: Color(0xFF8E8E93)))),
               )
             else
               ..._searchResults.map((item) => MagazineCard(item: item, fullHistory: widget.feedItems)),

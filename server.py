@@ -8,7 +8,6 @@ from psycopg2.extras import RealDictCursor
 import google.generativeai as genai
 import ingestion
 
-# --- SCHEDULER IMPORTS ---
 from apscheduler.schedulers.background import BackgroundScheduler
 import atexit
 
@@ -22,10 +21,9 @@ def get_db_connection():
     return psycopg2.connect(os.environ.get("DATABASE_URL"))
 
 def spicy_ai_summary(text, source):
-    """Generates an attention-grabbing hook and a 1-sentence viral summary."""
     try:
         prompt = f"""
-        You are an elite, entertaining cultural commentator and data analyst.
+        You are an elite, witty cultural and market intelligence commentator.
         Analyze this raw {source} transmission:
         "{text}"
 
@@ -33,14 +31,14 @@ def spicy_ai_summary(text, source):
         [HOOK] • Summary
 
         Guidelines:
-        1. [HOOK] must be a funny, dramatic, or attention-grabbing 2-to-3 word phrase with an emoji.
-           Examples: [🍿 Spill The Tea], [💅 Main Character], [👀 Caught in 4K], [🧠 Galaxy Brain], [💸 Wallet Hazard], [🚀 Bull Run], [📉 Blood in the Streets], [⚡ Internet Meltdown], [💀 Unhinged Move], [💎 Pure Flex].
+        1. [HOOK] must be an attention-grabbing 2-to-3 word phrase with an emoji.
+           Examples: [🍿 Spill The Tea], [💅 Main Character], [👀 Caught in 4K], [🧠 Galaxy Brain], [💸 Wallet Hazard], [🚀 Bull Run], [📉 Blood in the Streets], [⚡ Meltdown], [💀 Unhinged Move], [💎 Pure Flex].
         2. Summary must be punchy, crisp, and exactly 1 sentence.
         """
         response = ai_model.generate_content(prompt)
         return response.text.strip().replace("\n", " ")
     except Exception:
-        return "[⚡ Live Signal] • Intel transmission logged from the network."
+        return "[⚡ Live Intel] • Transmission processed from active network."
 
 # --- API ROUTES ---
 
@@ -48,7 +46,7 @@ def spicy_ai_summary(text, source):
 def get_trending():
     try:
         ingestion.run_full_omnichannel_scan()
-        return jsonify({"status": "success", "message": "Manual omnichannel scan initiated"}), 200
+        return jsonify({"status": "success", "message": "Omnichannel scan triggered"}), 200
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 
@@ -74,10 +72,26 @@ def search_vip():
     results = []
     clean_handle = query.lower().replace(" ", "").replace("@", "")
 
-    # 1. Real-Time Instagram (Picuki Ghost Mirror)
+    # 1. Real-Time News & Coverage (Guaranteed Results)
+    try:
+        news_feed = feedparser.parse(f"https://news.google.com/rss/search?q={query}&hl=en-IN&gl=IN&ceid=IN:en")
+        if news_feed.entries:
+            for entry in news_feed.entries[:3]:
+                summary = spicy_ai_summary(entry.title, "Global Media")
+                results.append({
+                    "source": "NEWS",
+                    "title": entry.title,
+                    "raw_summary": summary,
+                    "url": entry.link,
+                    "image_url": "https://images.unsplash.com/photo-1504711434969-e33886168f5c?q=80&w=800"
+                })
+    except Exception as e:
+        print(f"News Search error: {e}")
+
+    # 2. Real-Time Instagram (Picuki Ghost Mirror)
     try:
         headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0 Safari/537.36'}
-        res = requests.get(f"https://www.picuki.com/profile/{clean_handle}", headers=headers, timeout=6)
+        res = requests.get(f"https://www.picuki.com/profile/{clean_handle}", headers=headers, timeout=5)
         if res.status_code == 200:
             soup = BeautifulSoup(res.text, 'html.parser')
             post = soup.find('ul', class_='box-photos')
@@ -87,7 +101,7 @@ def search_vip():
                 text_elem = first_post.find('div', class_='photo-description')
                 
                 img_url = img_elem['src'] if img_elem else "https://images.unsplash.com/photo-1611262588024-d12430b98920?q=80&w=800"
-                raw_text = text_elem.text.strip() if text_elem else f"Latest Instagram update from {query}"
+                raw_text = text_elem.text.strip() if text_elem else f"Latest Instagram post by {query}"
                 
                 summary = spicy_ai_summary(raw_text, "Instagram")
                 results.append({
@@ -97,10 +111,10 @@ def search_vip():
                     "url": f"https://instagram.com/{clean_handle}",
                     "image_url": img_url
                 })
-    except Exception as e:
-        print(f"IG Search error: {e}")
+    except Exception:
+        pass
 
-    # 2. Real-Time X / Twitter (Nitter Gateway)
+    # 3. Real-Time X / Twitter (Multi-Instance Fallback)
     nitter_instances = ["https://nitter.poast.org", "https://nitter.privacydev.net", "https://nitter.lucabased.xyz"]
     for instance in nitter_instances:
         try:
@@ -119,39 +133,6 @@ def search_vip():
                 break
         except Exception:
             continue
-
-    # 3. Real-Time YouTube Search
-    try:
-        yt_feed = feedparser.parse(f"https://www.youtube.com/feeds/videos.xml?search_query={query}")
-        if yt_feed.entries:
-            vid = yt_feed.entries[0]
-            vid_id = vid.link.split('v=')[-1]
-            summary = spicy_ai_summary(vid.title, "YouTube")
-            results.append({
-                "source": "YOUTUBE",
-                "title": vid.title,
-                "raw_summary": summary,
-                "url": vid.link,
-                "image_url": f"https://img.youtube.com/vi/{vid_id}/hqdefault.jpg"
-            })
-    except Exception as e:
-        print(f"YouTube Search error: {e}")
-
-    # 4. Real-Time Google News Dossier
-    try:
-        news_feed = feedparser.parse(f"https://news.google.com/rss/search?q={query}&hl=en-IN&gl=IN&ceid=IN:en")
-        if news_feed.entries:
-            for entry in news_feed.entries[:2]:
-                summary = spicy_ai_summary(entry.title, "News")
-                results.append({
-                    "source": "NEWS",
-                    "title": entry.title,
-                    "raw_summary": summary,
-                    "url": entry.link,
-                    "image_url": "https://images.unsplash.com/photo-1504711434969-e33886168f5c?q=80&w=800"
-                })
-    except Exception as e:
-        print(f"News Search error: {e}")
 
     return jsonify(results), 200
 
@@ -175,22 +156,17 @@ def ask_graviton():
             live_context += f"- [{item['source']}] {item['title']} | {item['raw_summary']}\n"
             
         prompt = f"""
-        You are the elite AI Copilot for the Graviton platform. You are a witty, highly analytical intelligence system.
+        You are the elite AI Copilot for the Graviton intelligence platform.
         {live_context}
         USER QUESTION: {user_question}
-        
-        INSTRUCTIONS:
-        1. Answer using the LIVE DATABASE CONTEXT when relevant.
-        2. Keep formatting clean, sharp, and easy to read.
         """
         response = ai_model.generate_content(prompt)
         return jsonify({"graviton_response": response.text}), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
-# --- AUTONOMOUS BACKGROUND SCHEDULER ---
 def scheduled_ingestion():
-    print("Executing automatic 6-hour background sync...")
+    print("Executing automatic 6-hour sync...")
     ingestion.run_full_omnichannel_scan()
 
 scheduler = BackgroundScheduler()
