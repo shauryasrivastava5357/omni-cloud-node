@@ -38,8 +38,8 @@ def get_history():
         conn = get_db_connection()
         cursor = conn.cursor(cursor_factory=RealDictCursor)
 
-        # RESTORED: Pulling url and image_url for the UI, safely avoiding timestamp
-        cursor.execute('SELECT source, title, raw_summary, url, image_url FROM history')
+        # FIXED: Now pulling the 100 most recent items first (ORDER BY id DESC)
+        cursor.execute('SELECT source, title, raw_summary, url, image_url FROM history ORDER BY id DESC LIMIT 100')
         items = cursor.fetchall()
 
         cursor.close()
@@ -57,7 +57,7 @@ def ask_graviton():
         if not user_question:
             return jsonify({"error": "No question provided"}), 400
 
-        # YOUR CUSTOM RAG PIPELINE (Upgraded)
+        # YOUR CUSTOM RAG PIPELINE
         conn = get_db_connection()
         cursor = conn.cursor(cursor_factory=RealDictCursor)
         
