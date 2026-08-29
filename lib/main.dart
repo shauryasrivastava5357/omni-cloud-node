@@ -80,24 +80,6 @@ class _MainDashboardState extends State<MainDashboard> {
     }
   }
 
-  // Triggers the Render server to scrape the web, then re-fetches the database
-  Future<void> _triggerCloudSync() async {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text("Commanding cloud node to fetch fresh trends...", style: TextStyle(color: Colors.white)),
-        backgroundColor: Color(0xFF1C1C1E),
-        duration: Duration(seconds: 3),
-      )
-    );
-    try {
-      await http.get(Uri.parse('$API_URL/trending')); 
-      await Future.delayed(const Duration(seconds: 2)); 
-      await _fetchFeedData();
-    } catch (e) {
-      // ignore
-    }
-  }
-
   void _changeFilterAndNavigate(String filter) {
     setState(() {
       _selectedFilter = filter;
@@ -113,9 +95,9 @@ class _MainDashboardState extends State<MainDashboard> {
         isLoading: _isLoading, 
         selectedFilter: _selectedFilter,
         onClearFilter: () => setState(() => _selectedFilter = 'ALL'),
-        onRefresh: _triggerCloudSync,
+        onRefresh: _fetchFeedData,
       ),
-      PlatformMatrixScreen(
+      ExploreSearchScreen(
         feedItems: _feedItems, 
         onPlatformSelected: _changeFilterAndNavigate,
       ),
@@ -153,7 +135,7 @@ class _MainDashboardState extends State<MainDashboard> {
                     mainAxisAlignment: MainAxisAlignment.spaceAround,
                     children: [
                       _buildNavItem(0, Icons.view_day_rounded, "Feed"),
-                      _buildNavItem(1, Icons.grid_view_rounded, "Explore"),
+                      _buildNavItem(1, Icons.explore_rounded, "Explore"),
                       _buildNavItem(2, Icons.graphic_eq_rounded, "Copilot"),
                       _buildNavItem(3, Icons.insert_chart_rounded, "Data"),
                     ],
@@ -194,7 +176,7 @@ class _MainDashboardState extends State<MainDashboard> {
   }
 }
 
-// --- SCREEN 1: MAGAZINE FEED (NEW ARCHITECTURE) ---
+// --- SCREEN 1: MAGAZINE FEED ---
 class MagazineFeedScreen extends StatelessWidget {
   final List<dynamic> feedItems;
   final bool isLoading;
@@ -221,7 +203,6 @@ class MagazineFeedScreen extends StatelessWidget {
       bottom: false,
       child: Column(
         children: [
-          // Header
           Padding(
             padding: const EdgeInsets.fromLTRB(24, 20, 24, 10),
             child: Row(
@@ -248,13 +229,13 @@ class MagazineFeedScreen extends StatelessWidget {
             child: isLoading
                 ? const Center(child: CircularProgressIndicator(color: Color(0xFF1C1C1E)))
                 : filteredItems.isEmpty
-                    ? const Center(child: Text("No data in vault. Pull to refresh.", style: TextStyle(color: Color(0xFF8E8E93))))
+                    ? const Center(child: Text("No live transmissions. Pull to refresh.", style: TextStyle(color: Color(0xFF8E8E93))))
                     : RefreshIndicator(
                         color: const Color(0xFF1C1C1E),
                         backgroundColor: Colors.white,
                         onRefresh: onRefresh,
                         child: ListView.builder(
-                          padding: const EdgeInsets.fromLTRB(24, 10, 24, 140), // Clears the dock
+                          padding: const EdgeInsets.fromLTRB(24, 10, 24, 140),
                           itemCount: filteredItems.length,
                           itemBuilder: (context, index) {
                             return MagazineCard(item: filteredItems[index], fullHistory: feedItems);
@@ -268,6 +249,181 @@ class MagazineFeedScreen extends StatelessWidget {
   }
 }
 
+// --- SCREEN 2: ON-DEMAND EXPLORE & VIP SEARCH ---
+class ExploreSearchScreen extends StatefulWidget {
+  final List<dynamic> feedItems;
+  final Function(String) onPlatformSelected;
+
+  const ExploreSearchScreen({super.key, required this.feedItems, required this.onPlatformSelected});
+
+  @override
+  State<ExploreSearchScreen> createState() => _ExploreSearchScreenState();
+}
+
+class _ExploreSearchScreenState extends State<ExploreSearchScreen> {
+  final TextEditingController _searchController = TextEditingController();
+  List<dynamic> _searchResults = [];
+  bool _isSearching = false;
+  bool _hasSearched = false;
+
+  Future<void> _executeVIPSearch(String query) async {
+    if (query.trim().isEmpty) return;
+    setState(() {
+      _isSearching = true;
+      _hasSearched = true;
+      _searchResults = [];
+    });
+
+    try {
+      final res = await http.get(Uri.parse('$API_URL/search_vip?q=${Uri.encodeComponent(query)}')).timeout(const Duration(seconds: 20));
+      if (res.statusCode == 200) {
+        setState(() {
+          _searchResults = json.decode(res.body);
+        });
+      }
+    } catch (e) {
+      // ignore
+    } finally {
+      setState(() => _isSearching = false);
+    }
+  }
+
+  final List<Map<String, dynamic>> _platforms = const [
+    {'name': 'STOCKS', 'icon': Icons.trending_up_rounded, 'color': Color(0xFF00C805)},
+    {'name': 'AMAZON', 'icon': Icons.shopping_bag_outlined, 'color': Color(0xFFFF9900)},
+    {'name': 'NEWS', 'icon': Icons.article_outlined, 'color': Color(0xFF34A853)},
+    {'name': 'MYNTRA', 'icon': Icons.checkroom_outlined, 'color': Color(0xFFFF3F6C)},
+    {'name': 'FLIPKART', 'icon': Icons.local_mall_outlined, 'color': Color(0xFF2874F0)},
+    {'name': 'INSTAGRAM', 'icon': Icons.camera_alt_outlined, 'color': Color(0xFFE1306C)},
+    {'name': 'X', 'icon': Icons.tag, 'color': Color(0xFF14171A)},
+    {'name': 'YOUTUBE', 'icon': Icons.play_circle_outline, 'color': Color(0xFFFF0000)},
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      bottom: false,
+      child: ListView(
+        padding: const EdgeInsets.fromLTRB(24, 30, 24, 140),
+        children: [
+          const Text("Explore", style: TextStyle(fontSize: 34, fontWeight: FontWeight.w900, color: Color(0xFF1C1C1E), letterSpacing: -1.0)),
+          const SizedBox(height: 6),
+          const Text("Search any influencer, celebrity, or trend in real time.", style: TextStyle(fontSize: 15, color: Color(0xFF8E8E93))),
+          const SizedBox(height: 20),
+
+          // Universal Search Input Bar
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 15, offset: const Offset(0, 5))],
+            ),
+            child: TextField(
+              controller: _searchController,
+              onSubmitted: _executeVIPSearch,
+              style: const TextStyle(color: Color(0xFF1C1C1E), fontWeight: FontWeight.bold),
+              decoration: InputDecoration(
+                hintText: "Search VIP (e.g. Elon Musk, Tom Cruise)...",
+                hintStyle: const TextStyle(color: Color(0xFF8E8E93), fontWeight: FontWeight.normal),
+                prefixIcon: const Icon(Icons.search, color: Color(0xFF1C1C1E)),
+                suffixIcon: IconButton(
+                  icon: const Icon(Icons.arrow_forward_rounded, color: Color(0xFF007AFF)),
+                  onPressed: () => _executeVIPSearch(_searchController.text),
+                ),
+                border: InputBorder.none,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+              ),
+            ),
+          ),
+          const SizedBox(height: 30),
+
+          // Search Results Section
+          if (_isSearching)
+            const Center(
+              child: Padding(
+                padding: EdgeInsets.all(30.0),
+                child: Column(
+                  children: [
+                    CircularProgressIndicator(color: Color(0xFF1C1C1E)),
+                    SizedBox(height: 16),
+                    Text("Scanning Instagram, X, YouTube, and Global News...", style: TextStyle(color: Color(0xFF8E8E93), fontSize: 13, fontWeight: FontWeight.bold)),
+                  ],
+                ),
+              ),
+            )
+          else if (_hasSearched) ...[
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text("LIVE DOSSIER", style: TextStyle(color: Color(0xFF8E8E93), fontSize: 12, letterSpacing: 1.5, fontWeight: FontWeight.bold)),
+                GestureDetector(
+                  onTap: () => setState(() {
+                    _hasSearched = false;
+                    _searchController.clear();
+                  }),
+                  child: const Text("Clear Results", style: TextStyle(color: Color(0xFF007AFF), fontWeight: FontWeight.bold, fontSize: 12)),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            if (_searchResults.isEmpty)
+              Container(
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20)),
+                child: const Center(child: Text("No live transmissions located for this query.", style: TextStyle(color: Color(0xFF8E8E93)))),
+              )
+            else
+              ..._searchResults.map((item) => MagazineCard(item: item, fullHistory: widget.feedItems)),
+          ] else ...[
+            const Text("DATA STREAMS", style: TextStyle(color: Color(0xFF8E8E93), fontSize: 12, letterSpacing: 1.5, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 16),
+            GridView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: 2,
+                crossAxisSpacing: 16,
+                mainAxisSpacing: 16,
+                childAspectRatio: 1.3,
+              ),
+              itemCount: _platforms.length,
+              itemBuilder: (context, index) {
+                final platform = _platforms[index];
+                return InkWell(
+                  onTap: () => widget.onPlatformSelected(platform['name']),
+                  borderRadius: BorderRadius.circular(24),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(24),
+                      boxShadow: [
+                        BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 20, offset: const Offset(0, 8)),
+                      ],
+                    ),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(color: platform['color'].withOpacity(0.1), shape: BoxShape.circle),
+                          child: Icon(platform['icon'], size: 28, color: platform['color']),
+                        ),
+                        const SizedBox(height: 12),
+                        Text(platform['name'], style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14, color: Color(0xFF1C1C1E))),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+// --- MAGAZINE CARD COMPONENT ---
 class MagazineCard extends StatelessWidget {
   final dynamic item;
   final List<dynamic> fullHistory;
@@ -276,6 +432,7 @@ class MagazineCard extends StatelessWidget {
 
   Color _getPlatformColor(String source) {
     switch (source) {
+      case 'STOCKS': return const Color(0xFF00C805);
       case 'AMAZON': return const Color(0xFFFF9900);
       case 'MYNTRA': return const Color(0xFFFF3F6C);
       case 'FLIPKART': return const Color(0xFF2874F0);
@@ -303,13 +460,11 @@ class MagazineCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 20, offset: const Offset(0, 8)),
-          const BoxShadow(color: Colors.white, blurRadius: 0, spreadRadius: 1), 
         ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Image Block with Fallback
           ClipRRect(
             borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
             child: SizedBox(
@@ -325,13 +480,11 @@ class MagazineCard extends StatelessWidget {
             ),
           ),
           
-          // Text Content Block
           Padding(
             padding: const EdgeInsets.all(20),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Platform Tag
                 Row(
                   children: [
                     Container(width: 8, height: 8, decoration: BoxDecoration(color: pColor, shape: BoxShape.circle)),
@@ -341,15 +494,12 @@ class MagazineCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 12),
                 
-                // Title
                 Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: Color(0xFF1C1C1E), height: 1.3), maxLines: 3, overflow: TextOverflow.ellipsis),
                 const SizedBox(height: 8),
                 
-                // Summary
-                Text(summary, style: const TextStyle(fontSize: 14, color: Color(0xFF8E8E93), height: 1.4), maxLines: 2, overflow: TextOverflow.ellipsis),
+                Text(summary, style: const TextStyle(fontSize: 14, color: Color(0xFF1C1C1E), height: 1.4, fontWeight: FontWeight.w500), maxLines: 3, overflow: TextOverflow.ellipsis),
                 const SizedBox(height: 20),
                 
-                // Action Buttons
                 Row(
                   children: [
                     if (isEcom)
@@ -382,7 +532,7 @@ class MagazineCard extends StatelessWidget {
                             if (await canLaunchUrl(url)) await launchUrl(url, mode: LaunchMode.externalApplication);
                           },
                           icon: const Icon(Icons.open_in_new_rounded, size: 18),
-                          label: const Text("View Source", style: TextStyle(fontWeight: FontWeight.bold)),
+                          label: const Text("View Transmission", style: TextStyle(fontWeight: FontWeight.bold)),
                         ),
                       ),
                   ],
@@ -439,91 +589,6 @@ class MagazineCard extends StatelessWidget {
   }
 }
 
-// --- SCREEN 2: BENTO GRID EXPLORE ---
-class PlatformMatrixScreen extends StatelessWidget {
-  final List<dynamic> feedItems;
-  final Function(String) onPlatformSelected;
-
-  const PlatformMatrixScreen({super.key, required this.feedItems, required this.onPlatformSelected});
-
-  final List<Map<String, dynamic>> _platforms = const [
-    {'name': 'AMAZON', 'icon': Icons.shopping_bag_outlined, 'color': Color(0xFFFF9900)},
-    {'name': 'MYNTRA', 'icon': Icons.checkroom_outlined, 'color': Color(0xFFFF3F6C)},
-    {'name': 'FLIPKART', 'icon': Icons.local_mall_outlined, 'color': Color(0xFF2874F0)},
-    {'name': 'NEWS', 'icon': Icons.article_outlined, 'color': Color(0xFF34A853)},
-    {'name': 'INSTAGRAM', 'icon': Icons.camera_alt_outlined, 'color': Color(0xFFE1306C)},
-    {'name': 'X', 'icon': Icons.tag, 'color': Color(0xFF14171A)},
-    {'name': 'YOUTUBE', 'icon': Icons.play_circle_outline, 'color': Color(0xFFFF0000)},
-  ];
-
-  @override
-  Widget build(BuildContext context) {
-    return SafeArea(
-      child: CustomScrollView(
-        slivers: [
-          const SliverToBoxAdapter(
-            child: Padding(
-              padding: EdgeInsets.fromLTRB(24, 40, 24, 20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text("Data Vault", style: TextStyle(fontSize: 34, fontWeight: FontWeight.w900, color: Color(0xFF1C1C1E), letterSpacing: -1.0)),
-                  SizedBox(height: 8),
-                  Text("Select a stream to filter telemetry.", style: TextStyle(fontSize: 16, color: Color(0xFF8E8E93))),
-                ],
-              ),
-            ),
-          ),
-          SliverPadding(
-            padding: const EdgeInsets.symmetric(horizontal: 24),
-            sliver: SliverGrid(
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2,
-                crossAxisSpacing: 16,
-                mainAxisSpacing: 16,
-                childAspectRatio: 1.2,
-              ),
-              delegate: SliverChildBuilderDelegate(
-                (context, index) {
-                  final platform = _platforms[index];
-                  return InkWell(
-                    onTap: () => onPlatformSelected(platform['name']),
-                    borderRadius: BorderRadius.circular(24),
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(24),
-                        boxShadow: [
-                          BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 20, offset: const Offset(0, 8)),
-                          const BoxShadow(color: Colors.white, blurRadius: 0, spreadRadius: 1, offset: Offset(0, 0)), 
-                        ],
-                      ),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(color: platform['color'].withOpacity(0.1), shape: BoxShape.circle),
-                            child: Icon(platform['icon'], size: 28, color: platform['color']),
-                          ),
-                          const SizedBox(height: 16),
-                          Text(platform['name'], style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 14, color: Color(0xFF1C1C1E), letterSpacing: 0.5)),
-                        ],
-                      ),
-                    ),
-                  );
-                },
-                childCount: _platforms.length,
-              ),
-            ),
-          ),
-          const SliverToBoxAdapter(child: SizedBox(height: 140)), 
-        ],
-      ),
-    );
-  }
-}
-
 // --- SCREEN 3: COPILOT ---
 class AIAssistantScreen extends StatefulWidget {
   const AIAssistantScreen({super.key});
@@ -533,7 +598,7 @@ class AIAssistantScreen extends StatefulWidget {
 
 class _AIAssistantScreenState extends State<AIAssistantScreen> {
   final TextEditingController _controller = TextEditingController();
-  final List<Map<String, String>> _messages = [{'sender': 'ai', 'text': 'Graviton Intelligence online. Query the vault.'}];
+  final List<Map<String, String>> _messages = [{'sender': 'ai', 'text': 'Graviton Intelligence online. What are we tracking today?'}];
   bool _isThinking = false;
 
   Future<void> _sendMessage() async {
@@ -561,7 +626,7 @@ class _AIAssistantScreenState extends State<AIAssistantScreen> {
       child: Column(
         children: [
           const Padding(
-            padding: EdgeInsets.fromLTRB(24, 40, 24, 16),
+            padding: EdgeInsets.fromLTRB(24, 30, 24, 16),
             child: Align(alignment: Alignment.centerLeft, child: Text("Copilot", style: TextStyle(fontSize: 34, fontWeight: FontWeight.w900, color: Color(0xFF1C1C1E), letterSpacing: -1.0))),
           ),
           Expanded(
@@ -597,7 +662,7 @@ class _AIAssistantScreenState extends State<AIAssistantScreen> {
           ),
           if (_isThinking) const Padding(padding: EdgeInsets.all(8.0), child: CircularProgressIndicator(color: Color(0xFF1C1C1E), strokeWidth: 2)),
           Container(
-            padding: const EdgeInsets.fromLTRB(24, 8, 24, 120), 
+            padding: const EdgeInsets.fromLTRB(24, 8, 24, 120),
             child: Container(
               decoration: BoxDecoration(
                 color: Colors.white,
@@ -644,11 +709,11 @@ class ClusterTopologyScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return SafeArea(
       child: ListView(
-        padding: const EdgeInsets.fromLTRB(24, 40, 24, 140),
+        padding: const EdgeInsets.fromLTRB(24, 30, 24, 140),
         children: [
           const Text("Analytics", style: TextStyle(fontSize: 34, fontWeight: FontWeight.w900, color: Color(0xFF1C1C1E), letterSpacing: -1.0)),
-          const SizedBox(height: 8),
-          const Text("Live node telemetry and performance.", style: TextStyle(fontSize: 16, color: Color(0xFF8E8E93))),
+          const SizedBox(height: 6),
+          const Text("Live node telemetry and performance.", style: TextStyle(fontSize: 15, color: Color(0xFF8E8E93))),
           const SizedBox(height: 32),
           
           _buildInfoCard(title: "Data Vault", value: "842 Records", icon: Icons.storage_rounded, color: const Color(0xFF007AFF)),
