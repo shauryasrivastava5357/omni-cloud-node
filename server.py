@@ -1,7 +1,6 @@
 import os
 import requests
 import feedparser
-from bs4 import BeautifulSoup
 from flask import Flask, jsonify, request
 import psycopg2
 from psycopg2.extras import RealDictCursor
@@ -23,7 +22,7 @@ def get_db_connection():
 def spicy_ai_summary(text, source):
     try:
         prompt = f"""
-        You are an elite, witty cultural and market intelligence commentator.
+        You are an elite pop-culture and creator economy analyst.
         Analyze this raw {source} transmission:
         "{text}"
 
@@ -31,8 +30,8 @@ def spicy_ai_summary(text, source):
         [HOOK] • Summary
 
         Guidelines:
-        1. [HOOK] must be an attention-grabbing 2-to-3 word phrase with an emoji.
-           Examples: [🍿 Spill The Tea], [💅 Main Character], [👀 Caught in 4K], [🧠 Galaxy Brain], [💸 Wallet Hazard], [🚀 Bull Run], [📉 Blood in the Streets], [⚡ Meltdown], [💀 Unhinged Move], [💎 Pure Flex].
+        1. [HOOK] must be an entertaining 2-to-3 word phrase with an emoji.
+           Examples: [💅 Main Character], [🔥 Viral Drop], [👀 Caught in 4K], [🧠 Galaxy Brain], [💎 Luxury Flex], [⚡ Internet Meltdown], [🎬 Production Peak].
         2. Summary must be punchy, crisp, and exactly 1 sentence.
         """
         response = ai_model.generate_content(prompt)
@@ -63,76 +62,83 @@ def get_history():
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 
-@app.route('/search_vip', methods=['GET'])
-def search_vip():
+@app.route('/search_influencer', methods=['GET'])
+def search_influencer():
     query = request.args.get('q', '').strip()
     if not query:
         return jsonify([])
 
     results = []
     clean_handle = query.lower().replace(" ", "").replace("@", "")
+    encoded_q = requests.utils.quote(query)
 
-    # 1. Real-Time News & Coverage (Guaranteed Results)
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
+    }
+
+    # 1. AI Creator Dossier & Niche Detection
     try:
-        news_feed = feedparser.parse(f"https://news.google.com/rss/search?q={query}&hl=en-IN&gl=IN&ceid=IN:en")
-        if news_feed.entries:
-            for entry in news_feed.entries[:3]:
-                summary = spicy_ai_summary(entry.title, "Global Media")
+        prompt = f"""
+        Identify the creator/influencer/public figure "{query}".
+        Respond with a 1-sentence viral summary of what kind of content they create, their aesthetic, and why people follow them.
+        Start with a creative 2-word hook in brackets like [🎬 Tech Prodigy] or [💅 Fashion Icon] or [⚡ Gaming King].
+        """
+        dossier_resp = ai_model.generate_content(prompt)
+        dossier_summary = dossier_resp.text.strip().replace("\n", " ")
+    except Exception:
+        dossier_summary = f"[🌟 Creator Profile] • Aggregating cross-platform intelligence for {query}."
+
+    # 2. Real-Time News & Media Mentions
+    try:
+        news_url = f"https://news.google.com/rss/search?q={encoded_q}&hl=en-IN&gl=IN&ceid=IN:en"
+        resp = requests.get(news_url, headers=headers, timeout=8)
+        feed = feedparser.parse(resp.content)
+        
+        fallback_images = [
+            "https://images.unsplash.com/photo-1504711434969-e33886168f5c?q=80&w=800",
+            "https://images.unsplash.com/photo-1585829365295-ab7cd400c167?q=80&w=800",
+            "https://images.unsplash.com/photo-1495020689067-958852a7765e?q=80&w=800"
+        ]
+
+        if feed.entries:
+            for idx, entry in enumerate(feed.entries[:2]):
+                summary = spicy_ai_summary(entry.title, "Media Coverage")
                 results.append({
                     "source": "NEWS",
                     "title": entry.title,
                     "raw_summary": summary,
                     "url": entry.link,
-                    "image_url": "https://images.unsplash.com/photo-1504711434969-e33886168f5c?q=80&w=800"
+                    "image_url": fallback_images[idx % len(fallback_images)]
                 })
     except Exception as e:
-        print(f"News Search error: {e}")
+        print(f"Media Search error: {e}")
 
-    # 2. Real-Time Instagram (Picuki Ghost Mirror)
-    try:
-        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/120.0.0.0 Safari/537.36'}
-        res = requests.get(f"https://www.picuki.com/profile/{clean_handle}", headers=headers, timeout=5)
-        if res.status_code == 200:
-            soup = BeautifulSoup(res.text, 'html.parser')
-            post = soup.find('ul', class_='box-photos')
-            if post and post.find('li'):
-                first_post = post.find('li')
-                img_elem = first_post.find('img')
-                text_elem = first_post.find('div', class_='photo-description')
-                
-                img_url = img_elem['src'] if img_elem else "https://images.unsplash.com/photo-1611262588024-d12430b98920?q=80&w=800"
-                raw_text = text_elem.text.strip() if text_elem else f"Latest Instagram post by {query}"
-                
-                summary = spicy_ai_summary(raw_text, "Instagram")
-                results.append({
-                    "source": "INSTAGRAM",
-                    "title": f"@{clean_handle}",
-                    "raw_summary": summary,
-                    "url": f"https://instagram.com/{clean_handle}",
-                    "image_url": img_url
-                })
-    except Exception:
-        pass
+    # 3. Instagram Creator Hub
+    results.append({
+        "source": "INSTAGRAM",
+        "title": f"{query} (@{clean_handle})",
+        "raw_summary": dossier_summary,
+        "url": f"https://www.instagram.com/{clean_handle}/",
+        "image_url": "https://images.unsplash.com/photo-1611262588024-d12430b98920?q=80&w=800"
+    })
 
-    # 3. Real-Time X / Twitter (Multi-Instance Fallback)
-    nitter_instances = ["https://nitter.poast.org", "https://nitter.privacydev.net", "https://nitter.lucabased.xyz"]
-    for instance in nitter_instances:
-        try:
-            feed = feedparser.parse(f"{instance}/{clean_handle}/rss")
-            if feed.entries:
-                tweet = feed.entries[0]
-                clean_text = BeautifulSoup(tweet.description, "html.parser").text
-                summary = spicy_ai_summary(clean_text, "X")
-                results.append({
-                    "source": "X",
-                    "title": f"@{clean_handle}",
-                    "raw_summary": summary,
-                    "url": f"https://x.com/{clean_handle}",
-                    "image_url": "https://images.unsplash.com/photo-1611605698335-8b1569810432?q=80&w=800"
-                })
-                break
-        except Exception:
-            continue
+    # 4. YouTube Creator Hub
+    results.append({
+        "source": "YOUTUBE",
+        "title": f"{query} on YouTube",
+        "raw_summary": f"[📺 Video Broadcasts] • Access full library of long-form episodes, shorts, and live streams by {query}.",
+        "url": f"https://www.youtube.com/results?search_query={encoded_q}",
+        "image_url": "https://images.unsplash.com/photo-1611162617213-7d7a39e9b1d7?q=80&w=800"
+    })
+
+    # 5. X / Twitter Feed
+    results.append({
+        "source": "X",
+        "title": f"@{clean_handle} on X",
+        "raw_summary": f"[⚡ Realtime Thoughts] • Unfiltered statements, announcements, and replies from {query}.",
+        "url": f"https://x.com/{clean_handle}",
+        "image_url": "https://images.unsplash.com/photo-1611605698335-8b1569810432?q=80&w=800"
+    })
 
     return jsonify(results), 200
 
